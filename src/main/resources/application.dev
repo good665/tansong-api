@@ -1,0 +1,25 @@
+# 로컬 개발용. 비밀번호/시크릿 기본값이 있어도 되는 곳은 dev 뿐입니다.
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/reservation_db?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+    username: root
+    password: root
+ 
+app:
+  jwt:
+    # 32바이트(영문 32자) 이상이어야 합니다.
+    secret: ${JWT_SECRET:dev-only-secret-change-me-0123456789abcdef}
+    expiration-ms: 604800000   # 7일
+  cors:
+    allowed-origins: "*"
+    
+# DataSource 설정
+spring.datasource.url=jdbc:mysql://localhost:3306/reservation_db?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+//spring.datasource.username=${DB_USERNAME:root}
+//spring.datasource.password=${DB_PASSWORD:}
+
+# App 커스텀 설정 (JWT 및 CORS)
+# 32바이트(영문 32자) 이상이어야 합니다.
+app.jwt.secret=${JWT_SECRET:dev-only-secret-change-me-0123456789abcdef}
+app.jwt.expiration-ms=604800000   # 7일
+app.cors.allowed-origins=*
