@@ -5,14 +5,16 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-@MapperScan("kr.tansong.demo.store.mapper")
-@MapperScan("kr.tansong.demo.facility.mapper")
-@MapperScan("kr.tansong.demo.consultation.mapper")
+@MapperScan({
+    "kr.tansong.demo.store.mapper",
+    "kr.tansong.demo.facility.mapper",
+    "kr.tansong.demo.consultation.mapper",
+    "kr.tansong.demo.reservation.mapper",
+    "kr.tansong.demo.user.mapper"
+})
 public class DemoApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(
-        		DemoApplication.class, args
-        );
+        SpringApplication.run(DemoApplication.class, args);
     }
 }

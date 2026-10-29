@@ -63,4 +63,51 @@
 	      AND status IN ('REQUESTED', 'CONFIRMED')
 	</update>
 
+	<select id="findAllAdmin"
+	    resultType="kr.tansong.demo.admin.dto.AdminConsultationResponse">
+	    <![CDATA[
+	    SELECT
+	        c.id AS id,
+	        c.facility_id AS facilityId,
+	        f.name AS facilityName,
+	        c.user_id AS userId,
+	        u.name AS userName,
+	        u.email AS userEmail,
+
+	        DATE_FORMAT(c.preferred_at, '%Y-%m-%d %H:%i:%s') AS preferredAt,
+
+	        c.consultation_method AS consultationMethod,
+	        c.message AS message,
+	        c.status AS status,
+
+	        DATE_FORMAT(c.created_at, '%Y-%m-%d %H:%i:%s') AS createdAt
+
+	    FROM consultations c
+	    INNER JOIN facilities f ON c.facility_id = f.id
+	    INNER JOIN users u ON c.user_id = u.id
+	    ]]>
+	    <where>
+	        <if test="status != null and status != ''">
+	            AND c.status = #{status}
+	        </if>
+	    </where>
+	    ORDER BY c.created_at DESC
+	    LIMIT #{size} OFFSET #{offset}
+	</select>
+
+	<select id="countAdmin" resultType="long">
+	    SELECT COUNT(*) FROM consultations c
+	    <where>
+	        <if test="status != null and status != ''">
+	            AND c.status = #{status}
+	        </if>
+	    </where>
+	</select>
+
+	<update id="updateStatusAdmin">
+	    UPDATE consultations
+	       SET status = #{status}
+	     WHERE id = #{consultationId}
+	</update>
+
 </mapper>

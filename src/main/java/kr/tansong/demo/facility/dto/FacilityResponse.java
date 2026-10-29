@@ -1,6 +1,7 @@
 package kr.tansong.demo.facility.dto;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 public class FacilityResponse {
 
@@ -15,6 +16,8 @@ public class FacilityResponse {
     private BigDecimal monthlyFeeMax;
     private String introduction;
     private String admissionConditions;
+    private String status;
+    private List<String> photos;
 
     public Long getId() {
         return id;
@@ -102,5 +105,21 @@ public class FacilityResponse {
 
     public void setAdmissionConditions(String admissionConditions) {
         this.admissionConditions = admissionConditions;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    public List<String> getPhotos() {
+        return photos;
+    }
+
+    public void setPhotos(List<String> photos) {
+        this.photos = photos;
     }
 }

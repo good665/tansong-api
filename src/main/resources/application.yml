@@ -1,0 +1,22 @@
+# 공통 설정 (auth-v1 의 application.yml 을 이 파일로 교체)
+# 기존 application.properties 에 있던 mybatis 설정은 그대로 유지하세요.
+spring:
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 6MB
+
+app:
+  upload:
+    # 업로드된 시설 사진이 저장되는 폴더 (운영에서는 서버의 영구 저장소 경로로 지정)
+    dir: ${UPLOAD_DIR:./uploads}
+  reservation:
+    # 같은 시간대에 받을 수 있는 방문 예약 수 (시설당)
+    slot-capacity: ${RESERVATION_SLOT_CAPACITY:2}
+  auth:
+    # 브루트포스 방지: 이 횟수만큼 비밀번호를 틀리면 계정이 잠깁니다.
+    max-login-attempts: ${AUTH_MAX_LOGIN_ATTEMPTS:5}
+    # 잠긴 계정이 자동으로 풀리기까지의 시간(분)
+    lockout-minutes: ${AUTH_LOCKOUT_MINUTES:15}
