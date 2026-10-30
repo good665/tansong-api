@@ -7,6 +7,19 @@ on:
     branches: [main]
 
 jobs:
+  gitleaks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # 전체 히스토리를 스캔하기 위해 필요
+
+      # 개인 계정 저장소라 라이선스 키 불필요 (조직 소유 저장소일 때만 GITLEAKS_LICENSE 필요)
+      - name: Scan for secrets (gitleaks)
+        uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   build-and-test:
     runs-on: ubuntu-latest
     steps:
