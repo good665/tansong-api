@@ -82,6 +82,16 @@ mvn test
 - 머지 충돌 마커(`<<<<<<<` 등)가 그대로 커밋됐는지 검사
 - `mvn clean test`
 
+### 로컬 pre-commit 훅 (커밋 시점에 미리 검사)
+
+CI는 push된 *이후*에 검사합니다. 커밋하는 순간 바로 막으려면, 클론할 때마다 한 번씩:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+그리고 [gitleaks](https://github.com/gitleaks/gitleaks/releases)를 설치해 PATH에 추가하면, 커밋할 때마다 스테이징된 변경사항을 자동으로 검사합니다. gitleaks가 설치되어 있지 않으면 경고만 출력하고 커밋은 그대로 진행됩니다 (CI가 최종 방어선).
+
 ## 주의
 
 - `application-dev.yml`은 절대 커밋하지 마세요 (이미 `.gitignore`에 포함되어 있습니다).

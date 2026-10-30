@@ -1,0 +1,16 @@
+#!/bin/sh
+# 커밋 전에 스테이징된 변경사항에서 비밀번호/API 키 등 민감정보를 검사합니다 (gitleaks).
+# gitleaks 가 설치되어 있지 않으면 경고만 하고 커밋은 막지 않습니다 (CI가 최종 방어선 역할).
+
+if ! command -v gitleaks >/dev/null 2>&1; then
+  echo "[pre-commit] gitleaks 가 설치되어 있지 않아 로컬 검사를 건너뜁니다. (CI에서는 계속 검사됩니다)"
+  echo "[pre-commit] 설치: https://github.com/gitleaks/gitleaks/releases 에서 받아 PATH에 추가하세요."
+  exit 0
+fi
+
+gitleaks protect --staged --no-banner
+if [ $? -ne 0 ]; then
+  echo "[pre-commit] 스테이징된 변경사항에서 민감정보가 발견되어 커밋을 막았습니다."
+  echo "[pre-commit] 확인 후 다시 커밋해 주세요. (불가피하게 넘어가야 한다면: git commit --no-verify)"
+  exit 1
+fi
