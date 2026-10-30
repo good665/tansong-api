@@ -8,6 +8,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -17,19 +18,24 @@ import java.time.LocalDateTime;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import kr.tansong.demo.admin.dto.OrganizationCreateRequest;
 import kr.tansong.demo.auth.dto.AuthResponse;
+import kr.tansong.demo.auth.dto.BusinessSignupRequest;
 import kr.tansong.demo.auth.dto.LoginRequest;
 import kr.tansong.demo.auth.security.JwtProvider;
 import kr.tansong.demo.common.UnauthorizedException;
+import kr.tansong.demo.facility.mapper.OrganizationMapper;
 import kr.tansong.demo.user.domain.User;
 import kr.tansong.demo.user.mapper.UserMapper;
 
 /**
- * 로그인 브루트포스 방지(실패 횟수 누적 -> 잠금 -> 잠금 중 비밀번호 미확인 -> 성공 시 초기화) 규칙을 검증합니다.
+ * 로그인 브루트포스 방지(실패 횟수 누적 -> 잠금 -> 잠금 중 비밀번호 미확인 -> 성공 시 초기화) 규칙과
+ * 사업자 셀프 가입(signupBusiness: 계정 + 소유 기관을 함께 생성) 규칙을 검증합니다.
  */
 @ExtendWith(MockitoExtension.class)
 class AuthServiceTest {
@@ -41,6 +47,9 @@ class AuthServiceTest {
     private UserMapper userMapper;
 
     @Mock
+    private OrganizationMapper organizationMapper;
+
+    @Mock
     private PasswordEncoder passwordEncoder;
 
     @Mock
@@ -50,7 +59,20 @@ class AuthServiceTest {
 
     @BeforeEach
     void setUp() {
-        authService = new AuthService(userMapper, passwordEncoder, jwtProvider, MAX_ATTEMPTS, LOCKOUT_MINUTES);
+        authService = new AuthService(
+                userMapper, organizationMapper, passwordEncoder, jwtProvider, MAX_ATTEMPTS, LOCKOUT_MINUTES);
+    }
+
+    private BusinessSignupRequest businessSignupRequest() {
+        BusinessSignupRequest request = new BusinessSignupRequest();
+        request.setName("김사장");
+        request.setEmail("owner@example.com");
+        request.setPhone("010-1234-5678");
+        request.setPassword("password1");
+        request.setOrganizationName("테스트 요양 기관");
+        request.setOrganizationType("CARE_PROVIDER");
+        request.setBusinessRegistrationNumber("123-45-67890");
+        return request;
     }
 
     private User userWith(int failedAttempts, LocalDateTime lockedUntil) {
@@ -146,5 +168,57 @@ class AuthServiceTest {
                 .hasMessageContaining("이메일 또는 비밀번호");
 
         verify(userMapper, never()).updateLoginFailure(anyLong(), anyInt(), any());
+    }
+
+    @Test
+    void signupBusiness_성공하면_역할이_BUSINESS_OWNER인_계정과_소유기관을_함께_생성한다() {
+        when(userMapper.findByEmail(anyString())).thenReturn(null);
+        // MyBatis 의 useGeneratedKeys 동작을 모사: insert 호출 시 넘겨진 User 객체에 id 를 채워 넣음
+        doAnswer(invocation -> {
+            User user = invocation.getArgument(0);
+            user.setId(42L);
+            return 1;
+        }).when(userMapper).insert(any(User.class));
+        when(jwtProvider.createToken(42L, "BUSINESS_OWNER")).thenReturn("token-value");
+
+        AuthResponse response = authService.signupBusiness(businessSignupRequest());
+
+        assertThat(response.getToken()).isEqualTo("token-value");
+
+        ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
+        verify(userMapper).insert(userCaptor.capture());
+        assertThat(userCaptor.getValue().getRole()).isEqualTo("BUSINESS_OWNER");
+
+        ArgumentCaptor<OrganizationCreateRequest> orgCaptor =
+                ArgumentCaptor.forClass(OrganizationCreateRequest.class);
+        verify(organizationMapper).insert(orgCaptor.capture());
+        assertThat(orgCaptor.getValue().getOwnerUserId()).isEqualTo(42L);
+        assertThat(orgCaptor.getValue().getName()).isEqualTo("테스트 요양 기관");
+        assertThat(orgCaptor.getValue().getBusinessRegistrationNumber()).isEqualTo("123-45-67890");
+    }
+
+    @Test
+    void signupBusiness_사업자등록번호가_없으면_IllegalArgumentException을_던지고_계정을_만들지_않는다() {
+        BusinessSignupRequest request = businessSignupRequest();
+        request.setBusinessRegistrationNumber("");
+
+        assertThatThrownBy(() -> authService.signupBusiness(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("사업자등록번호");
+
+        verify(userMapper, never()).insert(any());
+        verify(organizationMapper, never()).insert(any());
+    }
+
+    @Test
+    void signupBusiness_기관명이_없으면_IllegalArgumentException을_던진다() {
+        BusinessSignupRequest request = businessSignupRequest();
+        request.setOrganizationName("  ");
+
+        assertThatThrownBy(() -> authService.signupBusiness(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("기관명");
+
+        verify(userMapper, never()).insert(any());
     }
 }

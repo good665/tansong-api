@@ -8,6 +8,9 @@ public class OrganizationCreateRequest {
     private String organizationType;
     private String phone;
     private String email;
+    private String businessRegistrationNumber;
+    // 사업자 셀프 가입(AuthService#signupBusiness) 때만 채워짐. 관리자가 등록할 땐 null(소유자 없음).
+    private Long ownerUserId;
 
     public Long getId() {
         return id;
@@ -47,5 +50,21 @@ public class OrganizationCreateRequest {
 
     public void setEmail(String email) {
         this.email = email;
+    }
+
+    public String getBusinessRegistrationNumber() {
+        return businessRegistrationNumber;
+    }
+
+    public void setBusinessRegistrationNumber(String businessRegistrationNumber) {
+        this.businessRegistrationNumber = businessRegistrationNumber;
+    }
+
+    public Long getOwnerUserId() {
+        return ownerUserId;
+    }
+
+    public void setOwnerUserId(Long ownerUserId) {
+        this.ownerUserId = ownerUserId;
     }
 }

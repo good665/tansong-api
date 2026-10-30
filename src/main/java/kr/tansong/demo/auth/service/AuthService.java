@@ -10,12 +10,15 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import kr.tansong.demo.admin.dto.OrganizationCreateRequest;
 import kr.tansong.demo.auth.dto.AuthResponse;
+import kr.tansong.demo.auth.dto.BusinessSignupRequest;
 import kr.tansong.demo.auth.dto.LoginRequest;
 import kr.tansong.demo.auth.dto.SignupRequest;
 import kr.tansong.demo.auth.dto.UserResponse;
 import kr.tansong.demo.auth.security.JwtProvider;
 import kr.tansong.demo.common.UnauthorizedException;
+import kr.tansong.demo.facility.mapper.OrganizationMapper;
 import kr.tansong.demo.user.domain.User;
 import kr.tansong.demo.user.mapper.UserMapper;
 
@@ -27,17 +30,20 @@ public class AuthService {
     private static final Pattern PHONE = Pattern.compile("^[0-9\\-]{9,15}$");
 
     private final UserMapper userMapper;
+    private final OrganizationMapper organizationMapper;
     private final PasswordEncoder passwordEncoder;
     private final JwtProvider jwtProvider;
     private final int maxLoginAttempts;
     private final int lockoutMinutes;
 
     public AuthService(UserMapper userMapper,
+                       OrganizationMapper organizationMapper,
                        PasswordEncoder passwordEncoder,
                        JwtProvider jwtProvider,
                        @Value("${app.auth.max-login-attempts:5}") int maxLoginAttempts,
                        @Value("${app.auth.lockout-minutes:15}") int lockoutMinutes) {
         this.userMapper = userMapper;
+        this.organizationMapper = organizationMapper;
         this.passwordEncoder = passwordEncoder;
         this.jwtProvider = jwtProvider;
         this.maxLoginAttempts = maxLoginAttempts;
@@ -50,10 +56,50 @@ public class AuthService {
             throw new IllegalArgumentException("가입 정보가 없습니다.");
         }
 
-        String name = trim(req.getName());
-        String email = normalizeEmail(req.getEmail());
-        String phone = trim(req.getPhone());
-        String password = req.getPassword();
+        User user = createUser(req.getName(), req.getEmail(), req.getPhone(), req.getPassword(), "USER");
+        return toAuthResponse(user);
+    }
+
+    // 사업자 셀프 가입: 개인 계정(role=BUSINESS_OWNER) + 소유 기관을 한 번에 생성
+    @Transactional
+    public AuthResponse signupBusiness(BusinessSignupRequest req) {
+        if (req == null) {
+            throw new IllegalArgumentException("가입 정보가 없습니다.");
+        }
+
+        String orgName = trim(req.getOrganizationName());
+        String orgType = trim(req.getOrganizationType());
+        String bizNumber = trim(req.getBusinessRegistrationNumber());
+
+        if (orgName.isEmpty() || orgName.length() > 150) {
+            throw new IllegalArgumentException("기관명을 1~150자로 입력해 주세요.");
+        }
+        if (orgType.isEmpty() || orgType.length() > 40) {
+            throw new IllegalArgumentException("기관 유형을 1~40자로 입력해 주세요.");
+        }
+        if (bizNumber.isEmpty()) {
+            throw new IllegalArgumentException("사업자등록번호를 입력해 주세요.");
+        }
+
+        User user = createUser(req.getName(), req.getEmail(), req.getPhone(), req.getPassword(), "BUSINESS_OWNER");
+
+        OrganizationCreateRequest orgRequest = new OrganizationCreateRequest();
+        orgRequest.setName(orgName);
+        orgRequest.setOrganizationType(orgType);
+        orgRequest.setBusinessRegistrationNumber(bizNumber);
+        orgRequest.setPhone(trim(req.getOrganizationPhone()).isEmpty() ? null : trim(req.getOrganizationPhone()));
+        orgRequest.setEmail(trim(req.getOrganizationEmail()).isEmpty() ? null : trim(req.getOrganizationEmail()));
+        orgRequest.setOwnerUserId(user.getId());
+
+        organizationMapper.insert(orgRequest);
+
+        return toAuthResponse(user);
+    }
+
+    private User createUser(String rawName, String rawEmail, String rawPhone, String password, String role) {
+        String name = trim(rawName);
+        String email = normalizeEmail(rawEmail);
+        String phone = trim(rawPhone);
 
         if (name.isEmpty() || name.length() > 100) {
             throw new IllegalArgumentException("이름을 1~100자로 입력해 주세요.");
@@ -78,7 +124,7 @@ public class AuthService {
         user.setEmail(email);
         user.setPhone(phone.isEmpty() ? null : phone);
         user.setPasswordHash(passwordEncoder.encode(password));
-        user.setRole("USER");
+        user.setRole(role);
 
         try {
             userMapper.insert(user);
@@ -87,7 +133,7 @@ public class AuthService {
             throw new IllegalArgumentException("이미 가입된 이메일입니다.");
         }
 
-        return toAuthResponse(user);
+        return user;
     }
 
     public AuthResponse login(LoginRequest req) {

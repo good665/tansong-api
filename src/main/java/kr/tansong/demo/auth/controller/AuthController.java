@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import kr.tansong.demo.auth.dto.AuthResponse;
+import kr.tansong.demo.auth.dto.BusinessSignupRequest;
 import kr.tansong.demo.auth.dto.LoginRequest;
 import kr.tansong.demo.auth.dto.SignupRequest;
 import kr.tansong.demo.auth.dto.UserResponse;
@@ -34,6 +35,12 @@ public class AuthController {
     @PostMapping("/login")
     public AuthResponse login(@RequestBody LoginRequest request) {
         return authService.login(request);
+    }
+
+    // 사업자(시설 운영자) 가입: 개인 계정 + 소유 기관을 한 번에 생성, role=BUSINESS_OWNER
+    @PostMapping("/signup-business")
+    public ResponseEntity<AuthResponse> signupBusiness(@RequestBody BusinessSignupRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(authService.signupBusiness(request));
     }
 
     // 저장된 토큰이 아직 유효한지 + 내 정보 조회

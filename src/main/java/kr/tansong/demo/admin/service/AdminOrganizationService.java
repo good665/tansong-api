@@ -44,6 +44,8 @@ public class AdminOrganizationService {
         request.setOrganizationType(organizationType);
         request.setPhone(phone.isEmpty() ? null : phone);
         request.setEmail(email.isEmpty() ? null : email);
+        // 관리자가 등록하는 기관은 소유 사업자가 없음 (사업자 셀프 가입 경로인 AuthService#signupBusiness 와 구분)
+        request.setOwnerUserId(null);
 
         organizationMapper.insert(request);
         return request.getId();

@@ -16,7 +16,7 @@ public interface UserMapper {
 
     @Insert("""
         INSERT INTO users (name, email, phone, password_hash, role)
-        VALUES (#{name}, #{email}, #{phone}, #{passwordHash}, 'USER')
+        VALUES (#{name}, #{email}, #{phone}, #{passwordHash}, #{role})
         """)
     @Options(useGeneratedKeys = true, keyProperty = "id")
     int insert(User user);

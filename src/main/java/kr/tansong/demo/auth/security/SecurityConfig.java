@@ -36,11 +36,12 @@ public class SecurityConfig {
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                .requestMatchers("/api/auth/signup", "/api/auth/login").permitAll()
+                .requestMatchers("/api/auth/signup", "/api/auth/signup-business", "/api/auth/login").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/facilities/**").permitAll()   // 시설 조회는 비로그인 허용
                 .requestMatchers(HttpMethod.GET, "/uploads/**").permitAll()          // 업로드된 사진은 비로그인 조회 허용
                 .requestMatchers("/error").permitAll()
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")                   // 관리자 전용
+                .requestMatchers("/api/business/**").hasRole("BUSINESS_OWNER")       // 시설 운영 사업자 전용
                 .anyRequest().authenticated())
             .exceptionHandling(e -> e
                 .authenticationEntryPoint((req, res, ex) -> {

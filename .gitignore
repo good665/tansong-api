@@ -1,6 +1,7 @@
 ﻿**/application.properties
 **/application-dev.yml
 target/
+uploads/
 .classpath
 .project
 .settings/

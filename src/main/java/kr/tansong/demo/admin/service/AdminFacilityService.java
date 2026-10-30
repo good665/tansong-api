@@ -11,6 +11,7 @@ import kr.tansong.demo.admin.dto.FacilityUpsertRequest;
 import kr.tansong.demo.common.NotFoundException;
 import kr.tansong.demo.common.PageResponse;
 import kr.tansong.demo.common.Paging;
+import kr.tansong.demo.facility.FacilityTypes;
 import kr.tansong.demo.facility.dto.FacilityResponse;
 import kr.tansong.demo.facility.mapper.AdminFacilityMapper;
 import kr.tansong.demo.facility.mapper.FacilityImageMapper;
@@ -19,8 +20,6 @@ import kr.tansong.demo.facility.mapper.FacilityMapper;
 @Service
 public class AdminFacilityService {
 
-    private static final Set<String> FACILITY_TYPES = Set.of(
-            "SILVER_TOWN", "NURSING_HOME", "NURSING_HOSPITAL", "DAY_CARE", "HOME_CARE");
     private static final Set<String> STATUSES = Set.of("ACTIVE", "INACTIVE");
 
     private final AdminFacilityMapper adminFacilityMapper;
@@ -98,7 +97,7 @@ public class AdminFacilityService {
                 || adminFacilityMapper.countOrganizationById(request.getOrganizationId()) == 0) {
             throw new IllegalArgumentException("존재하지 않는 운영 기관입니다.");
         }
-        if (request.getFacilityType() == null || !FACILITY_TYPES.contains(request.getFacilityType())) {
+        if (request.getFacilityType() == null || !FacilityTypes.VALID.contains(request.getFacilityType())) {
             throw new IllegalArgumentException("시설 종류가 올바르지 않습니다.");
         }
         if (isBlank(request.getName()) || request.getName().length() > 150) {
