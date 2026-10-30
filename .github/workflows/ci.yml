@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: temurin
+          cache: maven
+
+      # 2026-10-30 사고(머지 충돌 마커가 그대로 커밋되어 비밀번호가 평문으로 노출된 사고) 재발 방지용
+      - name: Check for unresolved merge-conflict markers
+        run: |
+          if grep -rIn --exclude-dir=.git -E '^(<{7}|={7}|>{7}) ?' .; then
+            echo "::error::Unresolved merge-conflict markers found in the lines above."
+            exit 1
+          fi
+
+      - name: Build and test
+        run: mvn -B clean test
