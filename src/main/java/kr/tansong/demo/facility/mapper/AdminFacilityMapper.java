@@ -30,9 +30,14 @@ public interface AdminFacilityMapper {
                f.monthly_fee_max       AS monthlyFeeMax,
                f.introduction,
                f.admission_conditions  AS admissionConditions,
-               f.status
+               f.status,
+               (s.id IS NOT NULL)      AS premium,
+               bv.status               AS businessVerificationStatus
           FROM facilities f
           JOIN organizations o ON o.id = f.organization_id
+          LEFT JOIN subscriptions s
+              ON s.facility_id = f.id AND s.current_period_end > NOW()
+          LEFT JOIN business_verifications bv ON bv.organization_id = o.id
         <where>
             <if test="status != null and status != ''">
                 AND f.status = #{status}
@@ -59,9 +64,14 @@ public interface AdminFacilityMapper {
                f.monthly_fee_max       AS monthlyFeeMax,
                f.introduction,
                f.admission_conditions  AS admissionConditions,
-               f.status
+               f.status,
+               (s.id IS NOT NULL)      AS premium,
+               bv.status               AS businessVerificationStatus
           FROM facilities f
           JOIN organizations o ON o.id = f.organization_id
+          LEFT JOIN subscriptions s
+              ON s.facility_id = f.id AND s.current_period_end > NOW()
+          LEFT JOIN business_verifications bv ON bv.organization_id = o.id
          WHERE f.id = #{id}
         """)
     FacilityResponse findByIdAdmin(@Param("id") Long id);

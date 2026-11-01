@@ -24,9 +24,12 @@ public interface FacilitySearchMapper {
                f.monthly_fee_min       AS monthlyFeeMin,
                f.monthly_fee_max       AS monthlyFeeMax,
                f.introduction,
-               f.admission_conditions  AS admissionConditions
+               f.admission_conditions  AS admissionConditions,
+               (s.id IS NOT NULL)      AS premium
           FROM facilities f
           JOIN organizations o ON o.id = f.organization_id
+          LEFT JOIN subscriptions s
+              ON s.facility_id = f.id AND s.current_period_end > NOW()
         <where>
             f.status = 'ACTIVE'
             <if test="type != null and type != ''">
@@ -38,13 +41,18 @@ public interface FacilitySearchMapper {
                   OR o.name    LIKE CONCAT('%', #{keyword}, '%'))
             </if>
         </where>
-         ORDER BY f.id DESC
+         <!-- 광고(상단노출) 시설이 항상 위. 광고 시설끼리는 seed 로 섞어서 무작위 순환하되,
+              같은 seed 면 순서가 같아서 다음 페이지를 불러와도 중복/누락이 생기지 않음 -->
+         ORDER BY premium DESC,
+                  CASE WHEN s.id IS NOT NULL THEN CRC32(CONCAT(f.id, ':', #{seed})) END,
+                  f.id DESC
          LIMIT #{size} OFFSET #{offset}
         </script>
         """)
     List<FacilityResponse> search(
             @Param("type") String type,
             @Param("keyword") String keyword,
+            @Param("seed") int seed,
             @Param("size") int size,
             @Param("offset") int offset);
 

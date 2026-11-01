@@ -10,7 +10,9 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
     "kr.tansong.demo.facility.mapper",
     "kr.tansong.demo.consultation.mapper",
     "kr.tansong.demo.reservation.mapper",
-    "kr.tansong.demo.user.mapper"
+    "kr.tansong.demo.user.mapper",
+    "kr.tansong.demo.subscription.mapper",
+    "kr.tansong.demo.verification.mapper"
 })
 public class DemoApplication {
 

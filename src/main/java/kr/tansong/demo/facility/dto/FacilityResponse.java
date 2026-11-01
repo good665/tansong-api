@@ -17,6 +17,10 @@ public class FacilityResponse {
     private String introduction;
     private String admissionConditions;
     private String status;
+    // 프리미엄(유료 상단노출) 구독이 현재 유효한지 — subscriptions 테이블 조인으로 계산됨
+    private boolean premium;
+    // 운영 기관의 국세청 진위확인 상태 (관리자 조회에서만 채워짐: VERIFIED/MISMATCH/CLOSED/UNAVAILABLE, 기록 없으면 null)
+    private String businessVerificationStatus;
     private List<String> photos;
 
     public Long getId() {
@@ -113,6 +117,22 @@ public class FacilityResponse {
 
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    public boolean isPremium() {
+        return premium;
+    }
+
+    public void setPremium(boolean premium) {
+        this.premium = premium;
+    }
+
+    public String getBusinessVerificationStatus() {
+        return businessVerificationStatus;
+    }
+
+    public void setBusinessVerificationStatus(String businessVerificationStatus) {
+        this.businessVerificationStatus = businessVerificationStatus;
     }
 
     public List<String> getPhotos() {

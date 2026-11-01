@@ -1,5 +1,6 @@
 package kr.tansong.demo.auth.service;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.regex.Pattern;
@@ -21,6 +22,9 @@ import kr.tansong.demo.common.UnauthorizedException;
 import kr.tansong.demo.facility.mapper.OrganizationMapper;
 import kr.tansong.demo.user.domain.User;
 import kr.tansong.demo.user.mapper.UserMapper;
+import kr.tansong.demo.verification.BusinessNumbers;
+import kr.tansong.demo.verification.BusinessVerificationService;
+import kr.tansong.demo.verification.VerificationResult;
 
 @Service
 public class AuthService {
@@ -31,6 +35,7 @@ public class AuthService {
 
     private final UserMapper userMapper;
     private final OrganizationMapper organizationMapper;
+    private final BusinessVerificationService businessVerificationService;
     private final PasswordEncoder passwordEncoder;
     private final JwtProvider jwtProvider;
     private final int maxLoginAttempts;
@@ -38,12 +43,14 @@ public class AuthService {
 
     public AuthService(UserMapper userMapper,
                        OrganizationMapper organizationMapper,
+                       BusinessVerificationService businessVerificationService,
                        PasswordEncoder passwordEncoder,
                        JwtProvider jwtProvider,
                        @Value("${app.auth.max-login-attempts:5}") int maxLoginAttempts,
                        @Value("${app.auth.lockout-minutes:15}") int lockoutMinutes) {
         this.userMapper = userMapper;
         this.organizationMapper = organizationMapper;
+        this.businessVerificationService = businessVerificationService;
         this.passwordEncoder = passwordEncoder;
         this.jwtProvider = jwtProvider;
         this.maxLoginAttempts = maxLoginAttempts;
@@ -69,7 +76,8 @@ public class AuthService {
 
         String orgName = trim(req.getOrganizationName());
         String orgType = trim(req.getOrganizationType());
-        String bizNumber = trim(req.getBusinessRegistrationNumber());
+        String bizNumber = BusinessNumbers.normalize(req.getBusinessRegistrationNumber());
+        String representativeName = trim(req.getRepresentativeName());
 
         if (orgName.isEmpty() || orgName.length() > 150) {
             throw new IllegalArgumentException("기관명을 1~150자로 입력해 주세요.");
@@ -77,11 +85,26 @@ public class AuthService {
         if (orgType.isEmpty() || orgType.length() > 40) {
             throw new IllegalArgumentException("기관 유형을 1~40자로 입력해 주세요.");
         }
-        if (bizNumber.isEmpty()) {
-            throw new IllegalArgumentException("사업자등록번호를 입력해 주세요.");
+        if (!BusinessNumbers.isValid(bizNumber)) {
+            throw new IllegalArgumentException("사업자등록번호 10자리를 정확히 입력해 주세요.");
         }
+        if (representativeName.isEmpty() || representativeName.length() > 50) {
+            throw new IllegalArgumentException("대표자 성명을 1~50자로 입력해 주세요.");
+        }
+        LocalDate startDate = BusinessNumbers.parseStartDate(req.getBusinessStartDate(), LocalDate.now());
 
         User user = createUser(req.getName(), req.getEmail(), req.getPhone(), req.getPassword(), "BUSINESS_OWNER");
+
+        // 국세청 진위확인 — 불일치/휴업/폐업이면 거절(트랜잭션 롤백으로 위 사용자 생성도 취소),
+        // API 장애면 가입은 받고 "미확인"으로 기록해 관리자가 승인 때 다시 확인
+        VerificationResult verification = businessVerificationService.verify(bizNumber, representativeName, startDate);
+        if (verification.status() == VerificationResult.Status.MISMATCH) {
+            throw new IllegalArgumentException(
+                    "사업자 정보가 국세청 등록 정보와 일치하지 않습니다. 사업자등록번호, 대표자 성명, 개업일자를 확인해 주세요.");
+        }
+        if (verification.status() == VerificationResult.Status.CLOSED) {
+            throw new IllegalArgumentException(verification.message() + " 계속사업자만 가입할 수 있습니다.");
+        }
 
         OrganizationCreateRequest orgRequest = new OrganizationCreateRequest();
         orgRequest.setName(orgName);
@@ -92,6 +115,7 @@ public class AuthService {
         orgRequest.setOwnerUserId(user.getId());
 
         organizationMapper.insert(orgRequest);
+        businessVerificationService.record(orgRequest.getId(), representativeName, startDate, verification);
 
         return toAuthResponse(user);
     }

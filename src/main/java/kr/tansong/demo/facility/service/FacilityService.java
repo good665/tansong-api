@@ -1,6 +1,7 @@
 package kr.tansong.demo.facility.service;
 
 import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
 
 import org.springframework.stereotype.Service;
 
@@ -45,8 +46,10 @@ public class FacilityService {
         return facility;
     }
 
-    /** 서버 쪽 검색 + 페이징 (page 는 0부터 시작) */
-    public PageResponse<FacilityResponse> search(String type, String keyword, int page, int size) {
+    /** 서버 쪽 검색 + 페이징 (page 는 0부터 시작).
+     *  seed: 광고 시설끼리의 무작위 순서를 정하는 값 — 앱이 검색할 때마다 새로 만들고 다음 페이지에도 같은 값을 보냄.
+     *  없으면 요청마다 새로 섞습니다. */
+    public PageResponse<FacilityResponse> search(String type, String keyword, Integer seed, int page, int size) {
 
         page = Math.max(0, Math.min(page, MAX_PAGE));
         size = size < 1 ? DEFAULT_SIZE : Math.min(size, MAX_SIZE);
@@ -65,7 +68,8 @@ public class FacilityService {
 
         long total = facilitySearchMapper.count(normalizedType, normalizedKeyword);
         List<FacilityResponse> items =
-                facilitySearchMapper.search(normalizedType, normalizedKeyword, size, page * size);
+                facilitySearchMapper.search(normalizedType, normalizedKeyword,
+                        seed != null ? seed : ThreadLocalRandom.current().nextInt(), size, page * size);
         items.forEach(this::attachPhotos);
 
         return new PageResponse<>(items, page, size, total);

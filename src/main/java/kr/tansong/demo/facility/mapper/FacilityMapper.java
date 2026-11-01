@@ -23,4 +23,8 @@ public interface FacilityMapper {
     // status 와 무관하게 존재 여부만 확인 (관리자용: 비활성 시설도 관리 대상이므로)
     @Select("SELECT COUNT(*) FROM facilities WHERE id = #{id}")
     int countById(@Param("id") Long id);
+
+    // 승인 상태(PENDING/ACTIVE/INACTIVE) 확인용 — 없는 시설이면 null
+    @Select("SELECT status FROM facilities WHERE id = #{id}")
+    String findStatusById(@Param("id") Long id);
 }

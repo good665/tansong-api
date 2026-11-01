@@ -32,15 +32,16 @@ public class FacilityController {
         return facilityService.findAll(type, keyword);
     }
 
-    // 검색 + 페이징: GET /api/facilities/search?type=&keyword=&page=0&size=10
+    // 검색 + 페이징: GET /api/facilities/search?type=&keyword=&seed=&page=0&size=10
     @GetMapping("/search")
     public PageResponse<FacilityResponse> search(
             @RequestParam(required = false) String type,
             @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Integer seed,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
 
-        return facilityService.search(type, keyword, page, size);
+        return facilityService.search(type, keyword, seed, page, size);
     }
 
     @GetMapping("/{id}")

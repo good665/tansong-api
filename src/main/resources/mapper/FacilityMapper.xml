@@ -19,10 +19,13 @@
             f.monthly_fee_min AS monthlyFeeMin,
             f.monthly_fee_max AS monthlyFeeMax,
             f.introduction,
-            f.admission_conditions AS admissionConditions
+            f.admission_conditions AS admissionConditions,
+            (s.id IS NOT NULL) AS premium
         FROM facilities f
         JOIN organizations o
             ON f.organization_id = o.id
+        LEFT JOIN subscriptions s
+            ON s.facility_id = f.id AND s.current_period_end > NOW()
         WHERE f.status = 'ACTIVE'
 
         <if test="type != null and type != ''">
@@ -37,10 +40,10 @@
             )
         </if>
 
-        ORDER BY f.id DESC
+        ORDER BY premium DESC, f.id DESC
 
     </select>
-    
+
     <select id="findById" resultType="kr.tansong.demo.facility.dto.FacilityResponse">
 	    SELECT
 	        f.id AS id,
@@ -53,13 +56,16 @@
 	        f.monthly_fee_min AS monthlyFeeMin,
 	        f.monthly_fee_max AS monthlyFeeMax,
 	        f.introduction AS introduction,
-	        f.admission_conditions AS admissionConditions
+	        f.admission_conditions AS admissionConditions,
+	        (s.id IS NOT NULL) AS premium
 	    FROM facilities f
 	    LEFT JOIN organizations o
 	        ON f.organization_id = o.id
+	    LEFT JOIN subscriptions s
+	        ON s.facility_id = f.id AND s.current_period_end > NOW()
 	    WHERE f.id = #{id}
 	    	AND f.status = 'ACTIVE'
-	    	
+
 	</select>
 
 </mapper>

@@ -12,6 +12,9 @@ public class BusinessSignupRequest {
     private String organizationName;
     private String organizationType;
     private String businessRegistrationNumber;
+    // 국세청 진위확인용
+    private String representativeName;
+    private String businessStartDate;
     private String organizationPhone;
     private String organizationEmail;
 
@@ -34,4 +37,20 @@ public class BusinessSignupRequest {
     public void setOrganizationPhone(String organizationPhone) { this.organizationPhone = organizationPhone; }
     public String getOrganizationEmail() { return organizationEmail; }
     public void setOrganizationEmail(String organizationEmail) { this.organizationEmail = organizationEmail; }
+
+    public String getRepresentativeName() {
+        return representativeName;
+    }
+
+    public void setRepresentativeName(String representativeName) {
+        this.representativeName = representativeName;
+    }
+
+    public String getBusinessStartDate() {
+        return businessStartDate;
+    }
+
+    public void setBusinessStartDate(String businessStartDate) {
+        this.businessStartDate = businessStartDate;
+    }
 }
