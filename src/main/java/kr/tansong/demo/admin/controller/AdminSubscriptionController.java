@@ -49,6 +49,11 @@ public class AdminSubscriptionController {
         return Map.of("success", true, "message", "상단 노출이 해지되었습니다.");
     }
 
+    @GetMapping("/subscriptions/overview")
+    public Map<String, Object> overview() {
+        return subscriptionService.getOverview();
+    }
+
     // 매일 23:50 에 도는 자동 연장을 지금 바로 실행 (운영 점검/테스트용)
     @PostMapping("/subscriptions/renewals")
     public Map<String, Object> runRenewals() {

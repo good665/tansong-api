@@ -2,6 +2,7 @@ package kr.tansong.demo.subscription.mapper;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
@@ -84,4 +85,41 @@ public interface SubscriptionMapper {
          LIMIT 24
         """)
     List<SubscriptionPaymentResponse> findPaymentsByFacilityId(@Param("facilityId") Long facilityId);
+
+    // ── 관리자 매출·구독 현황 (읽기 전용 보고용이라 DTO 없이 Map) ──
+
+    @Select("""
+        SELECT
+          (SELECT COUNT(*) FROM subscriptions WHERE current_period_end > NOW()) AS activeCount,
+          (SELECT COUNT(*) FROM subscriptions WHERE current_period_end > NOW() AND status = 'ACTIVE') AS autoRenewCount,
+          (SELECT COALESCE(SUM(amount), 0) FROM subscription_payments
+            WHERE status = 'PAID' AND created_at >= DATE_FORMAT(NOW(), '%Y-%m-01')) AS monthRevenue,
+          (SELECT COUNT(*) FROM subscription_payments
+            WHERE status = 'FAILED' AND created_at >= DATE_FORMAT(NOW(), '%Y-%m-01')) AS monthFailedCount,
+          (SELECT COALESCE(SUM(amount), 0) FROM subscription_payments WHERE status = 'PAID') AS totalRevenue
+        """)
+    Map<String, Object> findOverviewSummary();
+
+    @Select("""
+        SELECT s.facility_id AS facilityId, f.name AS facilityName, o.name AS organizationName,
+               s.status = 'ACTIVE' AS autoRenew,
+               DATE_FORMAT(DATE_SUB(s.current_period_end, INTERVAL 1 DAY), '%Y-%m-%d') AS premiumUntil
+          FROM subscriptions s
+          JOIN facilities f ON f.id = s.facility_id
+          LEFT JOIN organizations o ON o.id = f.organization_id
+         WHERE s.current_period_end > NOW()
+         ORDER BY s.current_period_end
+        """)
+    List<Map<String, Object>> findActiveSubscriptions();
+
+    @Select("""
+        SELECT p.id, p.facility_id AS facilityId, f.name AS facilityName,
+               p.amount, p.status, p.pg_provider AS pgProvider, p.failure_reason AS failureReason,
+               DATE_FORMAT(p.created_at, '%Y-%m-%d %H:%i') AS paidAt
+          FROM subscription_payments p
+          LEFT JOIN facilities f ON f.id = p.facility_id
+         ORDER BY p.id DESC
+         LIMIT 50
+        """)
+    List<Map<String, Object>> findRecentPayments();
 }

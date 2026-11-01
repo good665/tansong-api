@@ -5,6 +5,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -65,6 +66,14 @@ public class SubscriptionService {
 
     public List<SubscriptionPaymentResponse> getPayments(Long facilityId) {
         return subscriptionMapper.findPaymentsByFacilityId(facilityId);
+    }
+
+    /** 관리자 매출·구독 현황: 요약 수치 + 노출 중인 시설 + 최근 결제 50건 */
+    public Map<String, Object> getOverview() {
+        return Map.of(
+                "summary", subscriptionMapper.findOverviewSummary(),
+                "activeSubscriptions", subscriptionMapper.findActiveSubscriptions(),
+                "recentPayments", subscriptionMapper.findRecentPayments());
     }
 
     /**
