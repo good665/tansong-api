@@ -4,9 +4,11 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.List;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import kr.tansong.demo.common.ConflictException;
 import kr.tansong.demo.consultation.dto.ConsultationHistoryResponse;
 import kr.tansong.demo.consultation.dto.ConsultationRequest;
 import kr.tansong.demo.consultation.mapper.ConsultationMapper;
@@ -17,11 +19,14 @@ public class ConsultationService {
 
     private final ConsultationMapper consultationMapper;
     private final FacilityMapper facilityMapper;
+    private final int slotCapacity;
 
     public ConsultationService(ConsultationMapper consultationMapper,
-                               FacilityMapper facilityMapper) {
+                               FacilityMapper facilityMapper,
+                               @Value("${app.consultation.slot-capacity:2}") int slotCapacity) {
         this.consultationMapper = consultationMapper;
         this.facilityMapper = facilityMapper;
+        this.slotCapacity = slotCapacity;
     }
 
     @Transactional
@@ -52,6 +57,13 @@ public class ConsultationService {
         // 문의 내용 길이 제한
         if (request.getMessage() != null && request.getMessage().length() > 2000) {
             throw new IllegalArgumentException("문의 내용은 2000자 이하로 입력해 주세요.");
+        }
+
+        // 같은 시설·같은 시간대 상담 정원 확인 (희망 시간을 비워 둔 신청은 제한 없음)
+        if (request.getPreferredAt() != null && !request.getPreferredAt().isBlank()
+                && consultationMapper.countActiveByFacilityAndTime(
+                        request.getFacilityId(), request.getPreferredAt()) >= slotCapacity) {
+            throw new ConflictException("해당 시간대는 상담 신청이 모두 찼습니다. 다른 시간을 선택해 주세요.");
         }
 
         return consultationMapper.insert(request);

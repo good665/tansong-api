@@ -32,6 +32,9 @@ app:
   reservation:
     # 같은 시간대에 받을 수 있는 방문 예약 수 (시설당)
     slot-capacity: ${RESERVATION_SLOT_CAPACITY:2}
+  consultation:
+    # 같은 시간대에 받을 수 있는 상담 신청 수 (시설당)
+    slot-capacity: ${CONSULTATION_SLOT_CAPACITY:2}
   auth:
     # 브루트포스 방지: 이 횟수만큼 비밀번호를 틀리면 계정이 잠깁니다.
     max-login-attempts: ${AUTH_MAX_LOGIN_ATTEMPTS:5}

@@ -12,6 +12,11 @@ import kr.tansong.demo.consultation.dto.ConsultationRequest;
 
 @Mapper
 public interface ConsultationMapper {
+    // 같은 시설, 같은 시간대의 활성 상담 수 (REQUESTED/CONFIRMED) - 슬롯 정원 확인용
+    int countActiveByFacilityAndTime(
+            @Param("facilityId") Long facilityId,
+            @Param("preferredAt") String preferredAt);
+
 	// 상담 신청 저장
     int insert(@Param("request") ConsultationRequest request);
 

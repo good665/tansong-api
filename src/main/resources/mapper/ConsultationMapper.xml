@@ -5,6 +5,18 @@
 
 <mapper namespace="kr.tansong.demo.consultation.mapper.ConsultationMapper">
 
+    <!-- FOR UPDATE: 정원 확인과 insert 를 같은 트랜잭션에서 묶어 마지막 한 자리 중복 신청을 막음
+         (ReservationMapper.xml 의 같은 쿼리 설명 참고).
+         shortcut: consultations(facility_id, preferred_at) 인덱스가 없어 잠금 범위가 넓음 — 신청이 많아지면 인덱스 추가 -->
+    <select id="countActiveByFacilityAndTime" resultType="int">
+        SELECT COUNT(*)
+          FROM consultations
+         WHERE facility_id = #{facilityId}
+           AND preferred_at = #{preferredAt}
+           AND status IN ('REQUESTED', 'CONFIRMED')
+           FOR UPDATE
+    </select>
+
     <insert id="insert">
         INSERT INTO consultations (
             user_id,
