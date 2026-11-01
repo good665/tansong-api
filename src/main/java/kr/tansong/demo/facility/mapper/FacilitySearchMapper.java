@@ -38,7 +38,10 @@ public interface FacilitySearchMapper {
             <if test="keyword != null and keyword != ''">
                 AND (f.name    LIKE CONCAT('%', #{keyword}, '%')
                   OR f.address LIKE CONCAT('%', #{keyword}, '%')
-                  OR o.name    LIKE CONCAT('%', #{keyword}, '%'))
+                  OR o.name    LIKE CONCAT('%', #{keyword}, '%')
+                  <if test="keywordAlias != null">
+                  OR f.address LIKE CONCAT('%', #{keywordAlias}, '%')
+                  </if>)
             </if>
         </where>
          <!-- 광고(상단노출) 시설이 항상 위. 광고 시설끼리는 seed 로 섞어서 무작위 순환하되,
@@ -52,6 +55,7 @@ public interface FacilitySearchMapper {
     List<FacilityResponse> search(
             @Param("type") String type,
             @Param("keyword") String keyword,
+            @Param("keywordAlias") String keywordAlias,
             @Param("seed") int seed,
             @Param("size") int size,
             @Param("offset") int offset);
@@ -69,12 +73,16 @@ public interface FacilitySearchMapper {
             <if test="keyword != null and keyword != ''">
                 AND (f.name    LIKE CONCAT('%', #{keyword}, '%')
                   OR f.address LIKE CONCAT('%', #{keyword}, '%')
-                  OR o.name    LIKE CONCAT('%', #{keyword}, '%'))
+                  OR o.name    LIKE CONCAT('%', #{keyword}, '%')
+                  <if test="keywordAlias != null">
+                  OR f.address LIKE CONCAT('%', #{keywordAlias}, '%')
+                  </if>)
             </if>
         </where>
         </script>
         """)
     long count(
             @Param("type") String type,
-            @Param("keyword") String keyword);
+            @Param("keyword") String keyword,
+            @Param("keywordAlias") String keywordAlias);
 }

@@ -19,6 +19,10 @@ app:
     base-url: ${TOSS_BASE_URL:https://api.tosspayments.com}
     client-key: ${TOSS_CLIENT_KEY:}
     secret-key: ${TOSS_SECRET_KEY:}
+  public-data:
+    # 공공데이터포털 API (장기요양기관 검색/상세, 법정동코드). 포털 계정 공통 인증키라 따로 없으면 국세청 키를 사용
+    base-url: ${DATA_GO_KR_BASE_URL:https://apis.data.go.kr}
+    service-key: ${DATA_GO_KR_SERVICE_KEY:${NTS_SERVICE_KEY:}}
   nts:
     # 공공데이터포털 국세청 사업자등록정보 진위확인 API (인증키는 포털의 Decoding 키)
     base-url: ${NTS_BASE_URL:https://api.odcloud.kr/api/nts-businessman/v1}

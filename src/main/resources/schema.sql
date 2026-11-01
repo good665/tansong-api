@@ -51,3 +51,13 @@ CREATE TABLE IF NOT EXISTS billing_cards (
     UNIQUE KEY uk_billing_cards_facility (facility_id),
     UNIQUE KEY uk_billing_cards_pending (pending_customer_key)
 );
+
+-- 공공데이터로 들여온 시설 ↔ 원본 기관코드 (중복 방지·출처 추적)
+CREATE TABLE IF NOT EXISTS public_facility_sources (
+    facility_id BIGINT      NOT NULL,
+    source      VARCHAR(20) NOT NULL,
+    external_id VARCHAR(30) NOT NULL,
+    created_at  DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_public_facility_sources_external (source, external_id),
+    UNIQUE KEY uk_public_facility_sources_facility (facility_id)
+);

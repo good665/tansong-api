@@ -1,6 +1,9 @@
 package kr.tansong.demo.facility.service;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 
 import org.springframework.stereotype.Service;
@@ -66,13 +69,36 @@ public class FacilityService {
             normalizedKeyword = escapeLike(k);
         }
 
-        long total = facilitySearchMapper.count(normalizedType, normalizedKeyword);
+        String alias = normalizedKeyword == null ? null : regionAlias(normalizedKeyword);
+        long total = facilitySearchMapper.count(normalizedType, normalizedKeyword, alias);
         List<FacilityResponse> items =
-                facilitySearchMapper.search(normalizedType, normalizedKeyword,
+                facilitySearchMapper.search(normalizedType, normalizedKeyword, alias,
                         seed != null ? seed : ThreadLocalRandom.current().nextInt(), size, page * size);
         items.forEach(this::attachPhotos);
 
         return new PageResponse<>(items, page, size, total);
+    }
+
+    // 시도 이름 한글 ↔ 영문: "서울"로 찾아도 주소가 "Seoul"인 시설이, "seoul"로 찾아도 "서울" 시설이 나오게
+    private static final Map<String, String> REGION_ALIASES = buildRegionAliases(
+            "서울", "Seoul", "부산", "Busan", "대구", "Daegu", "인천", "Incheon", "광주", "Gwangju",
+            "대전", "Daejeon", "울산", "Ulsan", "세종", "Sejong", "경기", "Gyeonggi", "강원", "Gangwon",
+            "충북", "Chungbuk", "충남", "Chungnam", "전북", "Jeonbuk", "전남", "Jeonnam",
+            "경북", "Gyeongbuk", "경남", "Gyeongnam", "제주", "Jeju");
+
+    private static Map<String, String> buildRegionAliases(String... pairs) {
+        Map<String, String> map = new HashMap<>();
+        for (int i = 0; i < pairs.length; i += 2) {
+            map.put(pairs[i], pairs[i + 1]);
+            map.put(pairs[i + 1].toLowerCase(Locale.ROOT), pairs[i]);
+        }
+        return Map.copyOf(map);
+    }
+
+    /** 검색어가 시도 이름(서울, 서울특별시, seoul …)이면 반대 언어 이름, 아니면 null */
+    static String regionAlias(String keyword) {
+        String k = keyword.toLowerCase(Locale.ROOT).replaceAll("(특별시|광역시|특별자치시|특별자치도|도)$", "");
+        return REGION_ALIASES.get(k);
     }
 
     private void attachPhotos(FacilityResponse facility) {
