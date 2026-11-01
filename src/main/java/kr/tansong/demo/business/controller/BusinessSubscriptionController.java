@@ -1,6 +1,7 @@
 package kr.tansong.demo.business.controller;
 
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 import kr.tansong.demo.business.service.BusinessFacilityService;
 import kr.tansong.demo.subscription.dto.SubscriptionPaymentResponse;
 import kr.tansong.demo.subscription.dto.SubscriptionResponse;
+import kr.tansong.demo.subscription.service.BillingCardService;
 import kr.tansong.demo.subscription.service.SubscriptionService;
 
 /** 사업자가 본인 소유 시설의 상단노출(광고) 구독을 결제/해지/조회.
@@ -24,11 +26,24 @@ public class BusinessSubscriptionController {
 
     private final SubscriptionService subscriptionService;
     private final BusinessFacilityService businessFacilityService;
+    private final BillingCardService billingCardService;
 
     public BusinessSubscriptionController(SubscriptionService subscriptionService,
-                                          BusinessFacilityService businessFacilityService) {
+                                          BusinessFacilityService businessFacilityService,
+                                          BillingCardService billingCardService) {
         this.subscriptionService = subscriptionService;
         this.businessFacilityService = businessFacilityService;
+        this.billingCardService = billingCardService;
+    }
+
+    // 결제 카드 등록 시작 — 돌려준 주소를 앱이 브라우저로 엽니다
+    @PostMapping("/card-registration")
+    public Map<String, String> startCardRegistration(
+            @AuthenticationPrincipal Long ownerUserId,
+            @PathVariable Long facilityId) {
+
+        businessFacilityService.getById(facilityId, ownerUserId);
+        return Map.of("registerUrl", billingCardService.startRegistration(facilityId));
     }
 
     @GetMapping

@@ -13,6 +13,10 @@ public class SubscriptionResponse {
     // 상단 노출되는 마지막 날 (yyyy-MM-dd) — 다음날 00:00 에 내려갑니다. 노출 중이 아니면 null
     private String premiumUntil;
     private int monthlyPrice;
+    // 실제 PG(토스) 모드면 결제 전에 카드 등록이 필요 — 모의 결제 모드면 false
+    private boolean cardRequired;
+    private boolean cardRegistered;
+    private String cardSummary;
 
     public Long getFacilityId() {
         return facilityId;
@@ -76,5 +80,29 @@ public class SubscriptionResponse {
 
     public void setMonthlyPrice(int monthlyPrice) {
         this.monthlyPrice = monthlyPrice;
+    }
+
+    public boolean isCardRequired() {
+        return cardRequired;
+    }
+
+    public void setCardRequired(boolean cardRequired) {
+        this.cardRequired = cardRequired;
+    }
+
+    public boolean isCardRegistered() {
+        return cardRegistered;
+    }
+
+    public void setCardRegistered(boolean cardRegistered) {
+        this.cardRegistered = cardRegistered;
+    }
+
+    public String getCardSummary() {
+        return cardSummary;
+    }
+
+    public void setCardSummary(String cardSummary) {
+        this.cardSummary = cardSummary;
     }
 }

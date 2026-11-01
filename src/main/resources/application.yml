@@ -14,6 +14,11 @@ spring:
       encoding: UTF-8
 
 app:
+  toss:
+    # 토스페이먼츠 "API 개별 연동 키"(자동결제). 시크릿 키가 비어 있으면 모의 결제로 동작
+    base-url: ${TOSS_BASE_URL:https://api.tosspayments.com}
+    client-key: ${TOSS_CLIENT_KEY:}
+    secret-key: ${TOSS_SECRET_KEY:}
   nts:
     # 공공데이터포털 국세청 사업자등록정보 진위확인 API (인증키는 포털의 Decoding 키)
     base-url: ${NTS_BASE_URL:https://api.odcloud.kr/api/nts-businessman/v1}

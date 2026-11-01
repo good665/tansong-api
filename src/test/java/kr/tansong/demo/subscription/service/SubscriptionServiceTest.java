@@ -25,8 +25,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import kr.tansong.demo.common.ConflictException;
 import kr.tansong.demo.facility.mapper.FacilityMapper;
+import kr.tansong.demo.subscription.domain.BillingCard;
 import kr.tansong.demo.subscription.domain.Subscription;
 import kr.tansong.demo.subscription.dto.SubscriptionResponse;
+import kr.tansong.demo.subscription.mapper.BillingCardMapper;
 import kr.tansong.demo.subscription.mapper.SubscriptionMapper;
 import kr.tansong.demo.subscription.payment.PaymentGateway;
 import kr.tansong.demo.subscription.payment.PaymentResult;
@@ -47,6 +49,9 @@ class SubscriptionServiceTest {
     private SubscriptionMapper subscriptionMapper;
 
     @Mock
+    private BillingCardMapper billingCardMapper;
+
+    @Mock
     private FacilityMapper facilityMapper;
 
     @Mock
@@ -57,7 +62,7 @@ class SubscriptionServiceTest {
     @BeforeEach
     void setUp() {
         Clock clock = Clock.fixed(NOW.atZone(KST).toInstant(), KST);
-        service = new SubscriptionService(subscriptionMapper, facilityMapper, paymentGateway, clock, PRICE);
+        service = new SubscriptionService(subscriptionMapper, billingCardMapper, facilityMapper, paymentGateway, clock, PRICE);
         lenient().when(paymentGateway.providerName()).thenReturn("MOCK");
     }
 
@@ -74,7 +79,7 @@ class SubscriptionServiceTest {
     void subscribe_처음이면_결제하고_한달뒤_다음날_0시에_만료된다() {
         when(facilityMapper.findStatusById(FACILITY_ID)).thenReturn("ACTIVE");
         when(subscriptionMapper.findByFacilityIdForUpdate(FACILITY_ID)).thenReturn(null);
-        when(paymentGateway.charge(eq(FACILITY_ID), eq(PRICE), anyString())).thenReturn(PaymentResult.success("tx-1"));
+        when(paymentGateway.charge(any(), eq(FACILITY_ID), eq(PRICE), anyString())).thenReturn(PaymentResult.success("tx-1"));
 
         service.subscribe(FACILITY_ID);
 
@@ -91,7 +96,7 @@ class SubscriptionServiceTest {
         assertThatThrownBy(() -> service.subscribe(FACILITY_ID))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("승인");
-        verify(paymentGateway, never()).charge(anyLong(), anyInt(), anyString());
+        verify(paymentGateway, never()).charge(any(), anyLong(), anyInt(), anyString());
     }
 
     @Test
@@ -101,7 +106,7 @@ class SubscriptionServiceTest {
                 .thenReturn(subscription("ACTIVE", LocalDateTime.of(2026, 11, 15, 0, 0)));
 
         assertThatThrownBy(() -> service.subscribe(FACILITY_ID)).isInstanceOf(ConflictException.class);
-        verify(paymentGateway, never()).charge(anyLong(), anyInt(), anyString());
+        verify(paymentGateway, never()).charge(any(), anyLong(), anyInt(), anyString());
     }
 
     @Test
@@ -113,13 +118,13 @@ class SubscriptionServiceTest {
         service.subscribe(FACILITY_ID);
 
         verify(subscriptionMapper).updateStatus(FACILITY_ID, "ACTIVE");
-        verify(paymentGateway, never()).charge(anyLong(), anyInt(), anyString());
+        verify(paymentGateway, never()).charge(any(), anyLong(), anyInt(), anyString());
     }
 
     @Test
     void subscribe_결제실패면_구독을_만들지_않는다() {
         when(facilityMapper.findStatusById(FACILITY_ID)).thenReturn("ACTIVE");
-        when(paymentGateway.charge(eq(FACILITY_ID), eq(PRICE), anyString()))
+        when(paymentGateway.charge(any(), eq(FACILITY_ID), eq(PRICE), anyString()))
                 .thenReturn(PaymentResult.failure("카드 한도 초과"));
 
         assertThatThrownBy(() -> service.subscribe(FACILITY_ID))
@@ -159,7 +164,7 @@ class SubscriptionServiceTest {
         when(subscriptionMapper.findByFacilityIdForUpdate(FACILITY_ID))
                 .thenReturn(subscription("ACTIVE", LocalDateTime.of(2026, 10, 31, 0, 0)));
         when(facilityMapper.findStatusById(FACILITY_ID)).thenReturn("ACTIVE");
-        when(paymentGateway.charge(eq(FACILITY_ID), eq(PRICE), anyString())).thenReturn(PaymentResult.success("tx-2"));
+        when(paymentGateway.charge(any(), eq(FACILITY_ID), eq(PRICE), anyString())).thenReturn(PaymentResult.success("tx-2"));
 
         assertThat(service.renew(FACILITY_ID)).isTrue();
 
@@ -173,7 +178,7 @@ class SubscriptionServiceTest {
                 .thenReturn(subscription("ACTIVE", LocalDateTime.of(2026, 11, 30, 0, 0)));
 
         assertThat(service.renew(FACILITY_ID)).isFalse();
-        verify(paymentGateway, never()).charge(anyLong(), anyInt(), anyString());
+        verify(paymentGateway, never()).charge(any(), anyLong(), anyInt(), anyString());
     }
 
     @Test
@@ -182,7 +187,7 @@ class SubscriptionServiceTest {
                 .thenReturn(subscription("CANCELED", LocalDateTime.of(2026, 10, 31, 0, 0)));
 
         assertThat(service.renew(FACILITY_ID)).isFalse();
-        verify(paymentGateway, never()).charge(anyLong(), anyInt(), anyString());
+        verify(paymentGateway, never()).charge(any(), anyLong(), anyInt(), anyString());
     }
 
     @Test
@@ -190,7 +195,7 @@ class SubscriptionServiceTest {
         when(subscriptionMapper.findByFacilityIdForUpdate(FACILITY_ID))
                 .thenReturn(subscription("ACTIVE", LocalDateTime.of(2026, 10, 31, 0, 0)));
         when(facilityMapper.findStatusById(FACILITY_ID)).thenReturn("ACTIVE");
-        when(paymentGateway.charge(eq(FACILITY_ID), eq(PRICE), anyString()))
+        when(paymentGateway.charge(any(), eq(FACILITY_ID), eq(PRICE), anyString()))
                 .thenReturn(PaymentResult.failure("잔액 부족"));
 
         assertThat(service.renew(FACILITY_ID)).isFalse();
@@ -210,6 +215,48 @@ class SubscriptionServiceTest {
         assertThat(service.renew(FACILITY_ID)).isFalse();
 
         verify(subscriptionMapper).updateStatus(FACILITY_ID, "EXPIRED");
-        verify(paymentGateway, never()).charge(anyLong(), anyInt(), anyString());
+        verify(paymentGateway, never()).charge(any(), anyLong(), anyInt(), anyString());
+    }
+
+    @Test
+    void subscribe_PG모드에서_카드가_없으면_결제하지_않는다() {
+        when(facilityMapper.findStatusById(FACILITY_ID)).thenReturn("ACTIVE");
+        when(paymentGateway.requiresCard()).thenReturn(true);
+        when(billingCardMapper.findRegistered(FACILITY_ID)).thenReturn(null);
+
+        assertThatThrownBy(() -> service.subscribe(FACILITY_ID))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("카드");
+        verify(paymentGateway, never()).charge(any(), anyLong(), anyInt(), anyString());
+    }
+
+    @Test
+    void subscribe_PG모드면_등록된_카드로_청구한다() {
+        BillingCard card = new BillingCard();
+        card.setFacilityId(FACILITY_ID);
+        card.setCustomerKey("c0ffee00-0000-4000-8000-000000000000");
+        card.setBillingKey("billing-key");
+        when(facilityMapper.findStatusById(FACILITY_ID)).thenReturn("ACTIVE");
+        when(paymentGateway.requiresCard()).thenReturn(true);
+        when(billingCardMapper.findRegistered(FACILITY_ID)).thenReturn(card);
+        when(paymentGateway.charge(eq(card), eq(FACILITY_ID), eq(PRICE), anyString()))
+                .thenReturn(PaymentResult.success("pay-1"));
+
+        service.subscribe(FACILITY_ID);
+
+        verify(paymentGateway).charge(eq(card), eq(FACILITY_ID), eq(PRICE), anyString());
+    }
+
+    @Test
+    void subscribe_PG모드에서_카드없이_자동연장을_다시_켤수_없다() {
+        when(facilityMapper.findStatusById(FACILITY_ID)).thenReturn("ACTIVE");
+        when(subscriptionMapper.findByFacilityIdForUpdate(FACILITY_ID))
+                .thenReturn(subscription("CANCELED", LocalDateTime.of(2026, 11, 15, 0, 0)));
+        when(paymentGateway.requiresCard()).thenReturn(true);
+
+        assertThatThrownBy(() -> service.subscribe(FACILITY_ID))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("카드");
+        verify(subscriptionMapper, never()).updateStatus(anyLong(), anyString());
     }
 }

@@ -39,6 +39,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/signup", "/api/auth/signup-business", "/api/auth/login").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/facilities/**").permitAll()   // 시설 조회는 비로그인 허용
                 .requestMatchers(HttpMethod.GET, "/uploads/**").permitAll()          // 업로드된 사진은 비로그인 조회 허용
+                .requestMatchers(HttpMethod.GET, "/billing/toss/**").permitAll()     // 브라우저로 여는 카드 등록 페이지 (customerKey 로 확인)
                 .requestMatchers("/error").permitAll()
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")                   // 관리자 전용
                 .requestMatchers("/api/business/**").hasRole("BUSINESS_OWNER")       // 시설 운영 사업자 전용

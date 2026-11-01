@@ -13,9 +13,11 @@ import org.springframework.transaction.annotation.Transactional;
 import kr.tansong.demo.common.ConflictException;
 import kr.tansong.demo.common.NotFoundException;
 import kr.tansong.demo.facility.mapper.FacilityMapper;
+import kr.tansong.demo.subscription.domain.BillingCard;
 import kr.tansong.demo.subscription.domain.Subscription;
 import kr.tansong.demo.subscription.dto.SubscriptionPaymentResponse;
 import kr.tansong.demo.subscription.dto.SubscriptionResponse;
+import kr.tansong.demo.subscription.mapper.BillingCardMapper;
 import kr.tansong.demo.subscription.mapper.SubscriptionMapper;
 import kr.tansong.demo.subscription.payment.PaymentGateway;
 import kr.tansong.demo.subscription.payment.PaymentResult;
@@ -37,17 +39,20 @@ public class SubscriptionService {
     private static final DateTimeFormatter DATE_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     private final SubscriptionMapper subscriptionMapper;
+    private final BillingCardMapper billingCardMapper;
     private final FacilityMapper facilityMapper;
     private final PaymentGateway paymentGateway;
     private final Clock clock;
     private final int monthlyPrice;
 
     public SubscriptionService(SubscriptionMapper subscriptionMapper,
+                               BillingCardMapper billingCardMapper,
                                FacilityMapper facilityMapper,
                                PaymentGateway paymentGateway,
                                Clock clock,
                                @Value("${app.subscription.monthly-price:1000}") int monthlyPrice) {
         this.subscriptionMapper = subscriptionMapper;
+        this.billingCardMapper = billingCardMapper;
         this.facilityMapper = facilityMapper;
         this.paymentGateway = paymentGateway;
         this.clock = clock;
@@ -75,16 +80,23 @@ public class SubscriptionService {
         Subscription current = subscriptionMapper.findByFacilityIdForUpdate(facilityId);
         LocalDateTime now = LocalDateTime.now(clock);
 
+        if (isActive(current, now) && STATUS_ACTIVE.equals(current.getStatus())) {
+            throw new ConflictException("이미 상단 노출 중입니다.");
+        }
+
+        // 자동 연장을 다시 켜는 경우도 다음 달 청구에 카드가 필요하므로 여기서 함께 확인
+        BillingCard card = billingCardMapper.findRegistered(facilityId);
+        if (paymentGateway.requiresCard() && card == null) {
+            throw new IllegalArgumentException("결제 카드를 먼저 등록해 주세요.");
+        }
+
         if (isActive(current, now)) {
-            if (STATUS_ACTIVE.equals(current.getStatus())) {
-                throw new ConflictException("이미 상단 노출 중입니다.");
-            }
             subscriptionMapper.updateStatus(facilityId, STATUS_ACTIVE);
             return getStatus(facilityId);
         }
 
         LocalDateTime periodEnd = LocalDate.now(clock).plusMonths(1).atStartOfDay();
-        PaymentResult result = paymentGateway.charge(facilityId, monthlyPrice, "시설 상단노출 1개월");
+        PaymentResult result = paymentGateway.charge(card, facilityId, monthlyPrice, "시설 상단노출 1개월");
 
         if (!result.success()) {
             throw new IllegalArgumentException("결제에 실패했습니다. " + nullToEmpty(result.failureReason()));
@@ -143,7 +155,8 @@ public class SubscriptionService {
         }
         LocalDateTime periodEnd = base.plusMonths(1).atStartOfDay();
 
-        PaymentResult result = paymentGateway.charge(facilityId, monthlyPrice, "시설 상단노출 1개월 자동 연장");
+        PaymentResult result = paymentGateway.charge(
+                billingCardMapper.findRegistered(facilityId), facilityId, monthlyPrice, "시설 상단노출 1개월 자동 연장");
         recordPayment(facilityId, result, result.success() ? periodEnd : null);
 
         if (!result.success()) {
@@ -213,6 +226,12 @@ public class SubscriptionService {
         SubscriptionResponse response = new SubscriptionResponse();
         response.setFacilityId(facilityId);
         response.setMonthlyPrice(monthlyPrice);
+        response.setCardRequired(paymentGateway.requiresCard());
+        if (paymentGateway.requiresCard()) {
+            BillingCard card = billingCardMapper.findRegistered(facilityId);
+            response.setCardRegistered(card != null);
+            response.setCardSummary(card == null ? null : card.getCardSummary());
+        }
 
         if (subscription == null) {
             // 한 번도 구독한 적 없는 시설

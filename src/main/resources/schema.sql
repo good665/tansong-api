@@ -38,3 +38,16 @@ CREATE TABLE IF NOT EXISTS business_verifications (
     checked_at          DATETIME     NOT NULL,
     UNIQUE KEY uk_business_verifications_org (organization_id)
 );
+
+CREATE TABLE IF NOT EXISTS billing_cards (
+    id                   BIGINT AUTO_INCREMENT PRIMARY KEY,
+    facility_id          BIGINT       NOT NULL,
+    customer_key         VARCHAR(64)  NULL,
+    pending_customer_key VARCHAR(64)  NULL,
+    billing_key          VARCHAR(200) NULL,
+    card_summary         VARCHAR(100) NULL,
+    registered_at        DATETIME     NULL,
+    created_at           DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_billing_cards_facility (facility_id),
+    UNIQUE KEY uk_billing_cards_pending (pending_customer_key)
+);
