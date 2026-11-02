@@ -79,4 +79,23 @@ class ImageStorageServiceTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("5MB");
     }
+
+    @Test
+    void PDF는_일반_사진으로_거절() {
+        assertThatThrownBy(() -> storage.storeFacilityImage(1L, file("a.pdf", "%PDF-1.7 content here".getBytes(StandardCharsets.US_ASCII))))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void 일반_사진은_시설_폴더에_저장() {
+        assertThat(storage.storeFacilityImage(1L, file("a.png", PNG_HEAD))).startsWith("/uploads/facilities/1/").doesNotContain("plans").endsWith(".png");
+    }
+
+    @Test
+    void 너무_짧은_파일은_거절() {
+        assertThatThrownBy(() -> storage.storeFacilityImage(1L, file("a.png", new byte[] {(byte) 0x89, 'P', 'N', 'G'})))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> storage.storeFloorPlan(1L, file("a.pdf", new byte[] {'%', 'P', 'D'})))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
 }

@@ -30,7 +30,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<?> handleTooLarge(MaxUploadSizeExceededException e) {
-        return body(HttpStatus.BAD_REQUEST, "파일은 20MB 이하만 업로드할 수 있습니다.");
+        return body(HttpStatus.BAD_REQUEST, "파일이 너무 큽니다. 사진은 5MB, 도면도는 20MB 이하만 업로드할 수 있습니다.");
     }
 
     // 파라미터 누락 / 타입 불일치 / JSON 형식 오류 -> 500 이 아니라 400
