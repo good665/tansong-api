@@ -2,6 +2,11 @@ package kr.tansong.demo.publicdata;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
@@ -10,6 +15,9 @@ import java.util.Map;
 import java.util.Set;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.transaction.support.TransactionTemplate;
+
+import kr.tansong.demo.publicdata.mapper.PublicFacilityMapper;
 
 /** 공공데이터 응답 해석과 시설 변환 규칙 */
 class LtcImportServiceTest {
@@ -78,5 +86,26 @@ class LtcImportServiceTest {
     @Test
     void 사라진_기관이_5퍼센트를_넘으면_지우지_않는다() {
         assertThat(LtcImportService.missing(List.of("11100000000", "21100000001"), Set.of(), "11")).isEmpty();
+    }
+
+    @Test
+    void 목록을_끝까지_받지_못하면_아무것도_지우지_않는다() {
+        LtcApiClient client = mock(LtcApiClient.class);
+        PublicFacilityMapper mapper = mock(PublicFacilityMapper.class);
+        // 전체 100줄인데 99줄만 옴. 사라진 비율은 5% 안전장치보다 작음
+        List<Map<String, String>> rows = new java.util.ArrayList<>();
+        for (int i = 0; i < 99; i++) {
+            rows.add(Map.of("longTermAdminSym", "211" + (10000000 + i), "adminPttnCd", "C01"));
+        }
+        when(client.search("11", 1, 1000)).thenReturn(new LtcApiClient.Page(rows, 100));
+        List<String> imported = new java.util.ArrayList<>(rows.stream().map(r -> r.get("longTermAdminSym")).toList());
+        imported.add("21119999999");
+        when(mapper.findLiveExternalIds(any())).thenReturn(imported);
+
+        var result = new LtcImportService(client, mapper, mock(TransactionTemplate.class)).importRegion("11", 1);
+
+        assertThat(result.firstError()).contains("목록 조회 실패");
+        assertThat(result.removed()).isZero();
+        verify(mapper, never()).deleteFacility(any(), any());
     }
 }

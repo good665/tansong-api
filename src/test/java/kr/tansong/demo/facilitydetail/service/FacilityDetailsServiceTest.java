@@ -232,4 +232,9 @@ class FacilityDetailsServiceTest {
         assertThat(details.floorPlans).hasSize(1);
         assertThat(details.rooms).hasSize(1);
     }
+
+    @Test
+    void 반올림하면_0이_되는_면적_거절() {
+        assertRejectedWithoutTouchingData(request(room("1인실", "0.001")));
+    }
 }

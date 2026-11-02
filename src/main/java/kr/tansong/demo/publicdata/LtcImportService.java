@@ -177,8 +177,10 @@ public class LtcImportService {
     private Map<String, Institution> fetchInstitutions(String siDoCd) {
         Map<String, Institution> bySym = new LinkedHashMap<>();
         int page = 1;
+        int rows = 0;
         while (true) {
             LtcApiClient.Page p = client.search(siDoCd, page, PAGE_SIZE);
+            rows += p.items().size();
             for (Map<String, String> row : p.items()) {
                 Institution candidate = toInstitution(row);
                 if (candidate != null) {
@@ -186,6 +188,10 @@ public class LtcImportService {
                 }
             }
             if (p.items().isEmpty() || page * PAGE_SIZE >= p.totalCount()) {
+                // 목록이 덜 오면 빠진 시설이 폐업으로 처리되어 영구 삭제되므로 여기서 중단
+                if (rows < p.totalCount()) {
+                    throw new IllegalStateException("목록을 끝까지 받지 못했습니다. (" + rows + "/" + p.totalCount() + "줄)");
+                }
                 return bySym;
             }
             page++;

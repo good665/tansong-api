@@ -28,6 +28,7 @@ public class FacilityDetailsService {
     private static final int MAX_ROOM_TYPE_LENGTH = 50;
     private static final int MAX_LABEL_LENGTH = 30;
     private static final long MAX_PRICE = 1_000_000_000_000L;
+    private static final BigDecimal MIN_AREA = new BigDecimal("0.01"); // DB 는 소수 둘째 자리까지 저장
     private static final BigDecimal MAX_AREA = new BigDecimal("9999.99");
 
     private final BusinessFacilityMapper businessFacilityMapper;
@@ -126,8 +127,8 @@ public class FacilityDetailsService {
             if (room.roomType.trim().length() > MAX_ROOM_TYPE_LENGTH) {
                 throw new IllegalArgumentException("방 종류는 " + MAX_ROOM_TYPE_LENGTH + "자 이하로 입력해 주세요.");
             }
-            if (room.areaSqm != null && (room.areaSqm.signum() <= 0 || room.areaSqm.compareTo(MAX_AREA) > 0)) {
-                throw new IllegalArgumentException("방 크기는 0보다 크고 " + MAX_AREA + "㎡ 이하로 입력해 주세요.");
+            if (room.areaSqm != null && (room.areaSqm.compareTo(MIN_AREA) < 0 || room.areaSqm.compareTo(MAX_AREA) > 0)) {
+                throw new IllegalArgumentException("방 크기는 " + MIN_AREA + "㎡ 이상 " + MAX_AREA + "㎡ 이하로 입력해 주세요.");
             }
             validatePrices(room);
         }
