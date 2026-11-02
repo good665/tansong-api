@@ -61,3 +61,33 @@ CREATE TABLE IF NOT EXISTS public_facility_sources (
     UNIQUE KEY uk_public_facility_sources_external (source, external_id),
     UNIQUE KEY uk_public_facility_sources_facility (facility_id)
 );
+
+-- 광고 시설 추가 정보: 도면도, 방 종류, 방별 거래 유형 가격
+CREATE TABLE IF NOT EXISTS facility_floor_plans (
+    id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+    facility_id BIGINT       NOT NULL,
+    file_url    VARCHAR(500) NOT NULL,
+    file_type   VARCHAR(10)  NOT NULL,
+    label       VARCHAR(30)  NULL,
+    created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    KEY idx_facility_floor_plans_facility (facility_id),
+    CONSTRAINT fk_facility_floor_plans_facility FOREIGN KEY (facility_id) REFERENCES facilities (id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS facility_rooms (
+    id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+    facility_id BIGINT        NOT NULL,
+    room_type   VARCHAR(50)   NOT NULL,
+    area_sqm    DECIMAL(6, 2) NULL,
+    KEY idx_facility_rooms_facility (facility_id),
+    CONSTRAINT fk_facility_rooms_facility FOREIGN KEY (facility_id) REFERENCES facilities (id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS facility_room_prices (
+    room_id   BIGINT      NOT NULL,
+    deal_type VARCHAR(10) NOT NULL,
+    deposit   BIGINT      NULL,
+    amount    BIGINT      NULL,
+    UNIQUE KEY uk_facility_room_prices (room_id, deal_type),
+    CONSTRAINT fk_facility_room_prices_room FOREIGN KEY (room_id) REFERENCES facility_rooms (id) ON DELETE CASCADE
+);

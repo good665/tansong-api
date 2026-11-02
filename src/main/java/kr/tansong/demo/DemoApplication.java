@@ -13,6 +13,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
     "kr.tansong.demo.user.mapper",
     "kr.tansong.demo.subscription.mapper",
     "kr.tansong.demo.publicdata.mapper",
+    "kr.tansong.demo.facilitydetail.mapper",
     "kr.tansong.demo.verification.mapper"
 })
 public class DemoApplication {

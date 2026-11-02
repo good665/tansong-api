@@ -13,6 +13,7 @@ import kr.tansong.demo.facility.dto.FacilityResponse;
 import kr.tansong.demo.facility.mapper.FacilityImageMapper;
 import kr.tansong.demo.facility.mapper.FacilityMapper;
 import kr.tansong.demo.facility.mapper.FacilitySearchMapper;
+import kr.tansong.demo.facilitydetail.service.FacilityDetailsService;
 
 @Service
 public class FacilityService {
@@ -25,13 +26,16 @@ public class FacilityService {
     private final FacilityMapper facilityMapper;
     private final FacilitySearchMapper facilitySearchMapper;
     private final FacilityImageMapper facilityImageMapper;
+    private final FacilityDetailsService facilityDetailsService;
 
     public FacilityService(FacilityMapper facilityMapper,
                            FacilitySearchMapper facilitySearchMapper,
-                           FacilityImageMapper facilityImageMapper) {
+                           FacilityImageMapper facilityImageMapper,
+                           FacilityDetailsService facilityDetailsService) {
         this.facilityMapper = facilityMapper;
         this.facilitySearchMapper = facilitySearchMapper;
         this.facilityImageMapper = facilityImageMapper;
+        this.facilityDetailsService = facilityDetailsService;
     }
 
     public List<FacilityResponse> findAll(String type, String keyword) {
@@ -46,6 +50,9 @@ public class FacilityService {
         }
         FacilityResponse facility = facilityMapper.findById(id);
         attachPhotos(facility);
+        if (facility != null && facility.isPremium()) {
+            facility.setPremiumDetails(facilityDetailsService.getPublic(id));
+        }
         return facility;
     }
 

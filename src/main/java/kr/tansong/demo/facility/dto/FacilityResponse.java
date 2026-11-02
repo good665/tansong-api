@@ -3,6 +3,8 @@ package kr.tansong.demo.facility.dto;
 import java.math.BigDecimal;
 import java.util.List;
 
+import kr.tansong.demo.facilitydetail.dto.FacilityDetailsResponse;
+
 public class FacilityResponse {
 
     private Long id;
@@ -24,6 +26,8 @@ public class FacilityResponse {
     // 운영 기관의 국세청 진위확인 상태 (관리자 조회에서만 채워짐: VERIFIED/MISMATCH/CLOSED/UNAVAILABLE, 기록 없으면 null)
     private String businessVerificationStatus;
     private List<String> photos;
+    // 광고가 유효한 시설의 상세 조회에서만 채워짐 (그 외 null)
+    private FacilityDetailsResponse premiumDetails;
 
     public Long getId() {
         return id;
@@ -143,6 +147,14 @@ public class FacilityResponse {
 
     public void setBusinessVerificationStatus(String businessVerificationStatus) {
         this.businessVerificationStatus = businessVerificationStatus;
+    }
+
+    public FacilityDetailsResponse getPremiumDetails() {
+        return premiumDetails;
+    }
+
+    public void setPremiumDetails(FacilityDetailsResponse premiumDetails) {
+        this.premiumDetails = premiumDetails;
     }
 
     public List<String> getPhotos() {

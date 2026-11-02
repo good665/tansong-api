@@ -20,6 +20,9 @@ import org.springframework.web.multipart.MultipartFile;
 public class ImageStorageService {
 
     private static final long MAX_BYTES = 5L * 1024 * 1024;
+    private static final long MAX_FLOOR_PLAN_BYTES = 20L * 1024 * 1024;
+
+    public record StoredFloorPlan(String url, String fileType) {}
 
     private final Path root;
 
@@ -66,6 +69,48 @@ public class ImageStorageService {
         } catch (IOException e) {
             throw new IllegalStateException("이미지를 저장하지 못했습니다.", e);
         }
+    }
+
+    /** 도면도(JPG, PNG, PDF) 저장. 형식은 파일 내용으로 판별 */
+    public StoredFloorPlan storeFloorPlan(Long facilityId, MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("업로드할 도면도를 선택해 주세요.");
+        }
+        if (file.getSize() > MAX_FLOOR_PLAN_BYTES) {
+            throw new IllegalArgumentException("도면도는 20MB 이하만 업로드할 수 있습니다.");
+        }
+
+        try {
+            byte[] head = new byte[12];
+            int read;
+            try (InputStream in = file.getInputStream()) {
+                read = in.readNBytes(head, 0, head.length);
+            }
+            String ext = read < 5 ? null : detectFloorPlanExtension(head);
+            if (ext == null) {
+                throw new IllegalArgumentException("도면도는 JPG, PNG, PDF 파일만 업로드할 수 있습니다.");
+            }
+
+            Path dir = root.resolve("facilities").resolve(String.valueOf(facilityId)).resolve("plans").normalize();
+            Files.createDirectories(dir);
+
+            String filename = UUID.randomUUID() + "." + ext;
+            try (InputStream in = file.getInputStream()) {
+                Files.copy(in, dir.resolve(filename));
+            }
+
+            return new StoredFloorPlan("/uploads/facilities/" + facilityId + "/plans/" + filename,
+                    "pdf".equals(ext) ? "PDF" : "IMAGE");
+        } catch (IOException e) {
+            throw new IllegalStateException("도면도를 저장하지 못했습니다.", e);
+        }
+    }
+
+    private String detectFloorPlanExtension(byte[] h) {
+        if (h[0] == '%' && h[1] == 'P' && h[2] == 'D' && h[3] == 'F' && h[4] == '-') return "pdf";
+        if ((h[0] & 0xFF) == 0xFF && (h[1] & 0xFF) == 0xD8 && (h[2] & 0xFF) == 0xFF) return "jpg";
+        if ((h[0] & 0xFF) == 0x89 && h[1] == 'P' && h[2] == 'N' && h[3] == 'G') return "png";
+        return null;
     }
 
     public void deleteQuietly(String publicPath) {
