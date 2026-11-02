@@ -61,7 +61,6 @@
 	        ON c.facility_id = f.id
 	
 	    WHERE c.user_id = #{userId}
-	    	AND c.status != 'CANCELED'
 	
 	    ORDER BY c.created_at DESC
 
