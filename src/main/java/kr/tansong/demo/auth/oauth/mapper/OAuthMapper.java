@@ -13,19 +13,21 @@ public interface OAuthMapper {
     class Ticket {
         public String provider;
         public String redirectUri;
+        public String codeChallenge;
         public Long userId;
     }
 
     @Insert("""
-        INSERT INTO oauth_tickets (token_hash, kind, provider, redirect_uri, user_id, expires_at)
-        VALUES (#{hash}, #{kind}, #{provider}, #{redirectUri}, #{userId}, NOW() + INTERVAL #{seconds} SECOND)
+        INSERT INTO oauth_tickets (token_hash, kind, provider, redirect_uri, code_challenge, user_id, expires_at)
+        VALUES (#{hash}, #{kind}, #{provider}, #{redirectUri}, #{codeChallenge}, #{userId}, NOW() + INTERVAL #{seconds} SECOND)
         """)
     int insertTicket(@Param("hash") String hash, @Param("kind") String kind, @Param("provider") String provider,
-                     @Param("redirectUri") String redirectUri, @Param("userId") Long userId,
+                     @Param("redirectUri") String redirectUri, @Param("codeChallenge") String codeChallenge,
+                     @Param("userId") Long userId,
                      @Param("seconds") int seconds);
 
     @Select("""
-        SELECT provider, redirect_uri AS redirectUri, user_id AS userId
+        SELECT provider, redirect_uri AS redirectUri, code_challenge AS codeChallenge, user_id AS userId
           FROM oauth_tickets
          WHERE token_hash = #{hash} AND kind = #{kind} AND expires_at > NOW()
         """)

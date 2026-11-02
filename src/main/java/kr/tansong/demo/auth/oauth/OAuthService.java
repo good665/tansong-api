@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,6 +31,7 @@ import kr.tansong.demo.user.mapper.UserMapper;
 /**
  * 소셜 로그인 흐름: 앱 → start(제공자로 이동) → 제공자 → finish(사용자 확인) → 앱으로 일회용 코드 → exchange(JWT 발급).
  * JWT 는 주소에 넣지 않습니다. 복귀 주소는 허용 목록과 정확히 같아야 합니다.
+ * PKCE: 시작한 기기만 아는 verifier 가 있어야 코드를 교환할 수 있어, 코드를 가로채거나 남의 로그인 링크를 열어도 소용없습니다.
  */
 @Service
 public class OAuthService {
@@ -39,6 +41,7 @@ public class OAuthService {
     private static final String APP_REDIRECT = "tansongmobile://oauth-callback";
     private static final int STATE_SECONDS = 600;
     private static final int LOGIN_CODE_SECONDS = 60;
+    private static final Pattern CODE_CHALLENGE = Pattern.compile("^[A-Za-z0-9_-]{43}$");
     private static final Map<String, String> PROVIDER_NAMES = Map.of("google", "구글", "naver", "네이버", "kakao", "카카오");
 
     private final SecureRandom random = new SecureRandom();
@@ -67,16 +70,19 @@ public class OAuthService {
         return client.enabled();
     }
 
-    public String startUrl(String provider, String redirect) {
+    public String startUrl(String provider, String redirect, String codeChallenge) {
         if (!client.isEnabled(provider)) {
             throw new IllegalArgumentException("사용할 수 없는 로그인 방식입니다.");
         }
         if (!allowedRedirects.contains(redirect)) {
             throw new IllegalArgumentException("허용되지 않은 복귀 주소입니다.");
         }
+        if (codeChallenge == null || !CODE_CHALLENGE.matcher(codeChallenge).matches()) {
+            throw new IllegalArgumentException("로그인 요청이 올바르지 않습니다.");
+        }
         mapper.deleteExpired();
         String state = newToken();
-        mapper.insertTicket(hash(state), "STATE", provider, redirect, null, STATE_SECONDS);
+        mapper.insertTicket(hash(state), "STATE", provider, redirect, codeChallenge, null, STATE_SECONDS);
         return client.authorizeUrl(provider, state, client.callbackUrl(provider));
     }
 
@@ -99,7 +105,7 @@ public class OAuthService {
                 return redirect + "?error=email_exists";
             }
             String loginCode = newToken();
-            mapper.insertTicket(hash(loginCode), "LOGIN", provider, redirect, userId, LOGIN_CODE_SECONDS);
+            mapper.insertTicket(hash(loginCode), "LOGIN", provider, redirect, ticket.codeChallenge, userId, LOGIN_CODE_SECONDS);
             return redirect + "?code=" + loginCode;
         } catch (RuntimeException e) {
             // 메시지에 토큰이나 코드가 섞일 수 있어 예외 종류만 기록
@@ -108,12 +114,23 @@ public class OAuthService {
         }
     }
 
-    public AuthResponse exchange(String code) {
-        OAuthMapper.Ticket ticket = code == null || code.isBlank() ? null : consume(code, "LOGIN");
-        if (ticket == null || ticket.userId == null) {
+    public AuthResponse exchange(String code, String codeVerifier) {
+        String hash = code == null || code.isBlank() ? null : hash(code);
+        OAuthMapper.Ticket ticket = hash == null ? null : mapper.findTicket(hash, "LOGIN");
+        // verifier 확인 전에는 코드를 지우지 않음: 코드만 가로챈 쪽이 정상 로그인을 방해하지 못하게
+        if (ticket == null || ticket.userId == null || !matchesChallenge(codeVerifier, ticket.codeChallenge)
+                || mapper.deleteTicket(hash) != 1) {
             throw new IllegalArgumentException("로그인 코드가 만료되었습니다. 다시 시도해 주세요.");
         }
         return authService.issueToken(ticket.userId);
+    }
+
+    private static boolean matchesChallenge(String verifier, String challenge) {
+        if (verifier == null || challenge == null) {
+            return false;
+        }
+        String actual = Base64.getUrlEncoder().withoutPadding().encodeToString(sha256(verifier));
+        return MessageDigest.isEqual(actual.getBytes(StandardCharsets.US_ASCII), challenge.getBytes(StandardCharsets.US_ASCII));
     }
 
     /** 사용자 id. 같은 이메일의 다른 계정이 있으면 null */
@@ -176,8 +193,12 @@ public class OAuthService {
     }
 
     private static String hash(String token) {
+        return HexFormat.of().formatHex(sha256(token));
+    }
+
+    private static byte[] sha256(String value) {
         try {
-            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(token.getBytes(StandardCharsets.UTF_8)));
+            return MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8));
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException(e);
         }

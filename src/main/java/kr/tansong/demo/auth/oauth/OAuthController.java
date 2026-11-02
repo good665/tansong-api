@@ -34,8 +34,9 @@ public class OAuthController {
     }
 
     @GetMapping("/{provider}/start")
-    public ResponseEntity<Void> start(@PathVariable String provider, @RequestParam String redirect) {
-        return redirect(service.startUrl(provider, redirect));
+    public ResponseEntity<Void> start(@PathVariable String provider, @RequestParam String redirect,
+                                      @RequestParam("code_challenge") String codeChallenge) {
+        return redirect(service.startUrl(provider, redirect, codeChallenge));
     }
 
     @GetMapping("/{provider}/callback")
@@ -48,7 +49,7 @@ public class OAuthController {
 
     @PostMapping("/exchange")
     public AuthResponse exchange(@RequestBody Map<String, String> body) {
-        return service.exchange(body == null ? null : body.get("code"));
+        return service.exchange(body == null ? null : body.get("code"), body == null ? null : body.get("codeVerifier"));
     }
 
     private static ResponseEntity<Void> redirect(String url) {

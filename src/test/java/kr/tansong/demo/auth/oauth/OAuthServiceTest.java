@@ -41,6 +41,9 @@ import kr.tansong.demo.user.mapper.UserMapper;
 class OAuthServiceTest {
 
     private static final String APP = "tansongmobile://oauth-callback";
+    // RFC 7636 부록 B 의 예시 값
+    private static final String VERIFIER = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk";
+    private static final String CHALLENGE = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM";
     private static final String WEB = "http://localhost:8081/oauth-callback";
 
     @Mock
@@ -76,6 +79,7 @@ class OAuthServiceTest {
         OAuthMapper.Ticket ticket = new OAuthMapper.Ticket();
         ticket.provider = "kakao";
         ticket.redirectUri = APP;
+        ticket.codeChallenge = CHALLENGE;
         when(mapper.findTicket(anyString(), eq("STATE"))).thenReturn(ticket);
         when(mapper.deleteTicket(anyString())).thenReturn(1);
     }
@@ -87,11 +91,11 @@ class OAuthServiceTest {
 
     @Test
     void 시작하면_상태값은_해시로만_저장하고_제공자로_보낸다() {
-        assertThat(service.startUrl("kakao", APP)).isEqualTo("https://kakao/authorize");
+        assertThat(service.startUrl("kakao", APP, CHALLENGE)).isEqualTo("https://kakao/authorize");
 
         ArgumentCaptor<String> hash = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<String> state = ArgumentCaptor.forClass(String.class);
-        verify(mapper).insertTicket(hash.capture(), eq("STATE"), eq("kakao"), eq(APP), eq(null), anyInt());
+        verify(mapper).insertTicket(hash.capture(), eq("STATE"), eq("kakao"), eq(APP), eq(CHALLENGE), eq(null), anyInt());
         verify(client).authorizeUrl(eq("kakao"), state.capture(), eq("http://server/cb"));
         assertThat(state.getValue()).hasSizeGreaterThan(30).isNotEqualTo(hash.getValue());
         assertThat(hash.getValue()).hasSize(64);
@@ -101,14 +105,14 @@ class OAuthServiceTest {
     @ValueSource(strings = {"https://evil.example/cb", "tansongmobile://oauth-callback.evil", "tansongmobile://oauth-callback?x=1",
             "http://localhost:8081/oauth-callback/../x", "javascript:alert(1)", ""})
     void 허용되지_않은_복귀_주소는_거절한다(String redirect) {
-        assertThatThrownBy(() -> service.startUrl("kakao", redirect)).isInstanceOf(IllegalArgumentException.class);
-        verify(mapper, never()).insertTicket(any(), any(), any(), any(), any(), anyInt());
+        assertThatThrownBy(() -> service.startUrl("kakao", redirect, CHALLENGE)).isInstanceOf(IllegalArgumentException.class);
+        verify(mapper, never()).insertTicket(any(), any(), any(), any(), any(), any(), anyInt());
     }
 
     @Test
     void 설정된_웹_주소는_허용하고_설정_안된_제공자는_거절한다() {
-        assertThat(service.startUrl("kakao", "http://127.0.0.1:8081/oauth-callback")).isNotNull();
-        assertThatThrownBy(() -> service.startUrl("google", APP)).isInstanceOf(IllegalArgumentException.class);
+        assertThat(service.startUrl("kakao", "http://127.0.0.1:8081/oauth-callback", CHALLENGE)).isNotNull();
+        assertThatThrownBy(() -> service.startUrl("google", APP, CHALLENGE)).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
@@ -153,7 +157,7 @@ class OAuthServiceTest {
 
         assertThat(url).startsWith(APP + "?code=").doesNotContain("eyJ");
         verify(userMapper, never()).insert(any());
-        verify(mapper).insertTicket(anyString(), eq("LOGIN"), eq("kakao"), eq(APP), eq(7L), anyInt());
+        verify(mapper).insertTicket(anyString(), eq("LOGIN"), eq("kakao"), eq(APP), eq(CHALLENGE), eq(7L), anyInt());
     }
 
     @Test
@@ -180,7 +184,7 @@ class OAuthServiceTest {
 
         assertThat(service.finish("kakao", "c", "s", null)).isEqualTo(APP + "?error=email_exists");
         verify(mapper, never()).insertLink(any(), any(), any());
-        verify(mapper, never()).insertTicket(anyString(), eq("LOGIN"), any(), any(), any(), anyInt());
+        verify(mapper, never()).insertTicket(anyString(), eq("LOGIN"), any(), any(), any(), any(), anyInt());
     }
 
     @Test
@@ -205,7 +209,7 @@ class OAuthServiceTest {
         doThrow(new DuplicateKeyException("dup")).when(userMapper).insert(any());
 
         assertThat(service.finish("kakao", "c", "s", null)).startsWith(APP + "?code=");
-        verify(mapper).insertTicket(anyString(), eq("LOGIN"), eq("kakao"), eq(APP), eq(7L), anyInt());
+        verify(mapper).insertTicket(anyString(), eq("LOGIN"), eq("kakao"), eq(APP), eq(CHALLENGE), eq(7L), anyInt());
     }
 
     @Test
@@ -220,21 +224,22 @@ class OAuthServiceTest {
     void 코드를_바꾸면_JWT를_주고_두번째는_거절한다() {
         OAuthMapper.Ticket ticket = new OAuthMapper.Ticket();
         ticket.userId = 7L;
+        ticket.codeChallenge = CHALLENGE;
         when(mapper.findTicket(anyString(), eq("LOGIN"))).thenReturn(ticket);
         when(mapper.deleteTicket(anyString())).thenReturn(1, 0);
         AuthResponse response = mock(AuthResponse.class);
         when(authService.issueToken(7L)).thenReturn(response);
 
-        assertThat(service.exchange("code")).isSameAs(response);
-        assertThatThrownBy(() -> service.exchange("code")).isInstanceOf(IllegalArgumentException.class);
+        assertThat(service.exchange("code", VERIFIER)).isSameAs(response);
+        assertThatThrownBy(() -> service.exchange("code", VERIFIER)).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void 만료되었거나_없는_코드는_거절한다() {
         when(mapper.findTicket(anyString(), eq("LOGIN"))).thenReturn(null);
 
-        assertThatThrownBy(() -> service.exchange("code")).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> service.exchange(null)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> service.exchange("code", VERIFIER)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> service.exchange(null, VERIFIER)).isInstanceOf(IllegalArgumentException.class);
         verify(authService, never()).issueToken(any());
     }
 
@@ -243,5 +248,27 @@ class OAuthServiceTest {
         when(client.enabled()).thenReturn(List.of("kakao"));
 
         assertThat(service.providers()).containsExactly("kakao");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"", "short", "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-c=", "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cMX"})
+    void 형식이_틀린_challenge는_거절한다(String challenge) {
+        assertThatThrownBy(() -> service.startUrl("kakao", APP, challenge)).isInstanceOf(IllegalArgumentException.class);
+        verify(mapper, never()).insertTicket(any(), any(), any(), any(), any(), any(), anyInt());
+    }
+
+    // 코드를 가로챈 다른 앱이나, 남이 보낸 링크를 연 사람은 verifier 가 없어 로그인할 수 없음
+    @Test
+    void verifier가_틀리면_토큰을_주지_않고_코드도_소모하지_않는다() {
+        OAuthMapper.Ticket ticket = new OAuthMapper.Ticket();
+        ticket.userId = 7L;
+        ticket.codeChallenge = CHALLENGE;
+        when(mapper.findTicket(anyString(), eq("LOGIN"))).thenReturn(ticket);
+
+        assertThatThrownBy(() -> service.exchange("code", "wrong-verifier")).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> service.exchange("code", null)).isInstanceOf(IllegalArgumentException.class);
+
+        verify(authService, never()).issueToken(any());
+        verify(mapper, never()).deleteTicket(anyString());
     }
 }

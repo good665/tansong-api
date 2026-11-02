@@ -108,6 +108,7 @@ CREATE TABLE IF NOT EXISTS oauth_tickets (
     kind         VARCHAR(10)  NOT NULL,
     provider     VARCHAR(20)  NOT NULL,
     redirect_uri VARCHAR(255) NOT NULL,
+    code_challenge CHAR(43)   NOT NULL,
     user_id      BIGINT       NULL,
     expires_at   DATETIME     NOT NULL,
     KEY idx_oauth_tickets_expires (expires_at)
