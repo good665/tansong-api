@@ -133,7 +133,7 @@ public class AuthService {
             throw new IllegalArgumentException("이메일 형식이 올바르지 않습니다.");
         }
         if (!phone.isEmpty() && !PHONE.matcher(phone).matches()) {
-            throw new IllegalArgumentException("전화번호는 숫자와 하이픈(-)만 입력해 주세요.");
+            throw new IllegalArgumentException("전화번호 형식이 올바르지 않습니다. 예: 010-1234-5678");
         }
         if (password == null || password.length() < 8 || password.length() > 64
                 || !password.matches(".*[A-Za-z].*") || !password.matches(".*\\d.*")) {

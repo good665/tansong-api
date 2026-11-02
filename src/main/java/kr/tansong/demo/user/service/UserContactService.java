@@ -11,7 +11,7 @@ import kr.tansong.demo.user.mapper.UserMapper;
 @Service
 public class UserContactService {
 
-    public static final Pattern PHONE = Pattern.compile("^[0-9\\-]{9,15}$");
+    public static final Pattern PHONE = Pattern.compile("^0[1-9]\\d{0,2}-?\\d{3,4}-?\\d{4}$");
 
     private final UserMapper userMapper;
 
@@ -19,23 +19,25 @@ public class UserContactService {
         this.userMapper = userMapper;
     }
 
-    /** 사용자에게 전화번호가 없으면 입력값을 검증해 저장. 이미 있으면 바꾸지 않음 */
+    /** 입력값이 있으면 검증해 저장(잘못 입력한 번호를 고칠 수 있음). 없으면 기존 번호가 있어야 함 */
     public void ensurePhone(Long userId, String contactPhone) {
         User user = userMapper.findById(userId);
         if (user == null) {
             throw new IllegalArgumentException("사용자 정보를 찾을 수 없습니다.");
         }
-        if (user.getPhone() != null && !user.getPhone().isBlank()) {
+        String phone = contactPhone == null ? "" : contactPhone.trim();
+        String current = user.getPhone() == null ? "" : user.getPhone().trim();
+        if (phone.isEmpty()) {
+            if (current.isEmpty()) {
+                throw new IllegalArgumentException("시설에서 연락받을 전화번호를 입력해 주세요.");
+            }
             return;
         }
-
-        String phone = contactPhone == null ? "" : contactPhone.trim();
-        if (phone.isEmpty()) {
-            throw new IllegalArgumentException("시설에서 연락받을 전화번호를 입력해 주세요.");
-        }
         if (!PHONE.matcher(phone).matches()) {
-            throw new IllegalArgumentException("전화번호는 숫자와 하이픈(-)만 입력해 주세요.");
+            throw new IllegalArgumentException("전화번호 형식이 올바르지 않습니다. 예: 010-1234-5678");
         }
-        userMapper.updatePhone(userId, phone);
+        if (!phone.equals(current)) {
+            userMapper.updatePhone(userId, phone);
+        }
     }
 }
