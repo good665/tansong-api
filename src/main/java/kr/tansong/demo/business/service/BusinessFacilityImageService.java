@@ -17,6 +17,9 @@ import kr.tansong.demo.facility.mapper.FacilityImageMapper;
 @Service
 public class BusinessFacilityImageService {
 
+    // 앱이 30~50KB 로 줄여서 올림
+    private static final long MAX_PHOTO_BYTES = 50L * 1024;
+
     private final BusinessFacilityMapper businessFacilityMapper;
     private final FacilityImageMapper facilityImageMapper;
     private final ImageStorageService imageStorageService;
@@ -37,6 +40,10 @@ public class BusinessFacilityImageService {
     @Transactional
     public FacilityImageResponse upload(Long facilityId, Long ownerUserId, MultipartFile file) {
         requireOwnedFacility(facilityId, ownerUserId);
+
+        if (file != null && file.getSize() > MAX_PHOTO_BYTES) {
+            throw new IllegalArgumentException("사진은 50KB 이하만 업로드할 수 있습니다. 앱을 최신 버전으로 업데이트해 주세요.");
+        }
 
         String imageUrl = imageStorageService.storeFacilityImage(facilityId, file);
         int sortOrder = facilityImageMapper.nextSortOrder(facilityId);
