@@ -46,6 +46,9 @@ public interface UserMapper {
                             @Param("attempts") int attempts,
                             @Param("lockedUntil") LocalDateTime lockedUntil);
 
+    @Update("UPDATE users SET phone = #{phone} WHERE id = #{id}")
+    int updatePhone(@Param("id") Long id, @Param("phone") String phone);
+
     // 로그인 성공: 실패 기록 초기화
     @Update("UPDATE users SET failed_login_attempts = 0, locked_until = NULL WHERE id = #{id}")
     int resetLoginFailure(@Param("id") Long id);

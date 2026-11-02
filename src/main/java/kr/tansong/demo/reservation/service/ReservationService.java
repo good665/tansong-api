@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import kr.tansong.demo.common.ConflictException;
 import kr.tansong.demo.facility.dto.FacilityResponse;
 import kr.tansong.demo.facility.mapper.FacilityMapper;
+import kr.tansong.demo.user.service.UserContactService;
 import kr.tansong.demo.reservation.dto.ReservationRequest;
 import kr.tansong.demo.reservation.dto.ReservationResponse;
 import kr.tansong.demo.reservation.mapper.ReservationMapper;
@@ -22,13 +23,16 @@ public class ReservationService {
 
     private final ReservationMapper reservationMapper;
     private final FacilityMapper facilityMapper;
+    private final UserContactService userContactService;
     private final int slotCapacity;
 
     public ReservationService(ReservationMapper reservationMapper,
                               FacilityMapper facilityMapper,
+                              UserContactService userContactService,
                               @Value("${app.reservation.slot-capacity:2}") int slotCapacity) {
         this.reservationMapper = reservationMapper;
         this.facilityMapper = facilityMapper;
+        this.userContactService = userContactService;
         this.slotCapacity = slotCapacity;
     }
 
@@ -69,6 +73,8 @@ public class ReservationService {
         if (activeCount >= slotCapacity) {
             throw new ConflictException("해당 시간대는 방문 예약이 모두 찼습니다. 다른 시간을 선택해 주세요.");
         }
+
+        userContactService.ensurePhone(request.getUserId(), request.getContactPhone());
 
         return reservationMapper.insert(request);
     }

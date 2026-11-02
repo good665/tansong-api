@@ -7,6 +7,7 @@ public class ConsultationRequest {
     private String preferredAt;
     private String consultationMethod;
     private String message;
+    private String contactPhone; // 사용자에게 전화번호가 없을 때 신청 화면에서 입력
 
     public Long getUserId() {
         return userId;
@@ -46,5 +47,13 @@ public class ConsultationRequest {
 
     public void setMessage(String message) {
         this.message = message;
+    }
+
+    public String getContactPhone() {
+        return contactPhone;
+    }
+
+    public void setContactPhone(String contactPhone) {
+        this.contactPhone = contactPhone;
     }
 }

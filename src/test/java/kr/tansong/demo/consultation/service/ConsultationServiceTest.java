@@ -28,6 +28,9 @@ import kr.tansong.demo.facility.mapper.FacilityMapper;
 @ExtendWith(MockitoExtension.class)
 class ConsultationServiceTest {
 
+    @org.mockito.Mock
+    private kr.tansong.demo.user.service.UserContactService userContactService;
+
     private static final int SLOT_CAPACITY = 2;
 
     @Mock
@@ -40,7 +43,7 @@ class ConsultationServiceTest {
 
     @BeforeEach
     void setUp() {
-        consultationService = new ConsultationService(consultationMapper, facilityMapper, SLOT_CAPACITY);
+        consultationService = new ConsultationService(consultationMapper, facilityMapper, userContactService, SLOT_CAPACITY);
     }
 
     private ConsultationRequest request(String preferredAt) {
@@ -93,6 +96,20 @@ class ConsultationServiceTest {
         assertThatThrownBy(() -> consultationService.createConsultation(request(future())))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("전화로 문의");
+        verify(consultationMapper, never()).insert(any());
+    }
+
+    @Test
+    void 연락처_확인을_통과해야_저장한다() {
+        when(facilityMapper.findById(10L)).thenReturn(new FacilityResponse());
+        when(consultationMapper.countActiveByFacilityAndTime(anyLong(), anyString())).thenReturn(0);
+        org.mockito.Mockito.doThrow(new IllegalArgumentException("전화번호")).when(userContactService).ensurePhone(any(), any());
+
+        ConsultationRequest request = request(future());
+        request.setContactPhone("x");
+
+        assertThatThrownBy(() -> consultationService.createConsultation(request)).isInstanceOf(IllegalArgumentException.class);
+        verify(userContactService).ensurePhone(1L, "x");
         verify(consultationMapper, never()).insert(any());
     }
 }

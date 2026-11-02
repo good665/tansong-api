@@ -14,19 +14,23 @@ import kr.tansong.demo.consultation.dto.ConsultationRequest;
 import kr.tansong.demo.consultation.mapper.ConsultationMapper;
 import kr.tansong.demo.facility.dto.FacilityResponse;
 import kr.tansong.demo.facility.mapper.FacilityMapper;
+import kr.tansong.demo.user.service.UserContactService;
 
 @Service
 public class ConsultationService {
 
     private final ConsultationMapper consultationMapper;
     private final FacilityMapper facilityMapper;
+    private final UserContactService userContactService;
     private final int slotCapacity;
 
     public ConsultationService(ConsultationMapper consultationMapper,
                                FacilityMapper facilityMapper,
+                               UserContactService userContactService,
                                @Value("${app.consultation.slot-capacity:2}") int slotCapacity) {
         this.consultationMapper = consultationMapper;
         this.facilityMapper = facilityMapper;
+        this.userContactService = userContactService;
         this.slotCapacity = slotCapacity;
     }
 
@@ -71,6 +75,8 @@ public class ConsultationService {
                         request.getFacilityId(), request.getPreferredAt()) >= slotCapacity) {
             throw new ConflictException("해당 시간대는 상담 신청이 모두 찼습니다. 다른 시간을 선택해 주세요.");
         }
+
+        userContactService.ensurePhone(request.getUserId(), request.getContactPhone());
 
         return consultationMapper.insert(request);
     }

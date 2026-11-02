@@ -32,6 +32,9 @@ import kr.tansong.demo.reservation.mapper.ReservationMapper;
 @ExtendWith(MockitoExtension.class)
 class ReservationServiceTest {
 
+    @org.mockito.Mock
+    private kr.tansong.demo.user.service.UserContactService userContactService;
+
     private static final int SLOT_CAPACITY = 2;
     private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
 
@@ -47,7 +50,7 @@ class ReservationServiceTest {
 
     @BeforeEach
     void setUp() {
-        reservationService = new ReservationService(reservationMapper, facilityMapper, SLOT_CAPACITY);
+        reservationService = new ReservationService(reservationMapper, facilityMapper, userContactService, SLOT_CAPACITY);
         futureDateTime = LocalDateTime.now().plusDays(7).format(FORMATTER);
     }
 
@@ -176,6 +179,20 @@ class ReservationServiceTest {
         assertThatThrownBy(() -> reservationService.createReservation(validRequest()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("전화로 문의");
+        verify(reservationMapper, never()).insert(any());
+    }
+
+    @Test
+    void createReservation_연락처_확인을_통과해야_저장한다() {
+        when(facilityMapper.findById(10L)).thenReturn(new FacilityResponse());
+        when(reservationMapper.countActiveByFacilityAndTime(anyLong(), anyString())).thenReturn(0);
+        org.mockito.Mockito.doThrow(new IllegalArgumentException("전화번호")).when(userContactService).ensurePhone(any(), any());
+
+        ReservationRequest request = validRequest();
+        request.setContactPhone("x");
+
+        assertThatThrownBy(() -> reservationService.createReservation(request)).isInstanceOf(IllegalArgumentException.class);
+        verify(userContactService).ensurePhone(request.getUserId(), "x");
         verify(reservationMapper, never()).insert(any());
     }
 }

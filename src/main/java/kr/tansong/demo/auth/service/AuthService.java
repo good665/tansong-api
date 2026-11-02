@@ -22,6 +22,7 @@ import kr.tansong.demo.common.UnauthorizedException;
 import kr.tansong.demo.facility.mapper.OrganizationMapper;
 import kr.tansong.demo.user.domain.User;
 import kr.tansong.demo.user.mapper.UserMapper;
+import kr.tansong.demo.user.service.UserContactService;
 import kr.tansong.demo.verification.BusinessNumbers;
 import kr.tansong.demo.verification.BusinessVerificationService;
 import kr.tansong.demo.verification.VerificationResult;
@@ -31,7 +32,7 @@ public class AuthService {
 
     private static final Pattern EMAIL =
             Pattern.compile("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$");
-    private static final Pattern PHONE = Pattern.compile("^[0-9\\-]{9,15}$");
+    private static final Pattern PHONE = UserContactService.PHONE;
 
     private final UserMapper userMapper;
     private final OrganizationMapper organizationMapper;
