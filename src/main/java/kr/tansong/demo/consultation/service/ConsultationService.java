@@ -12,6 +12,7 @@ import kr.tansong.demo.common.ConflictException;
 import kr.tansong.demo.consultation.dto.ConsultationHistoryResponse;
 import kr.tansong.demo.consultation.dto.ConsultationRequest;
 import kr.tansong.demo.consultation.mapper.ConsultationMapper;
+import kr.tansong.demo.facility.dto.FacilityResponse;
 import kr.tansong.demo.facility.mapper.FacilityMapper;
 
 @Service
@@ -43,8 +44,13 @@ public class ConsultationService {
         }
 
         // 존재하는 시설인지 확인
-        if (facilityMapper.findById(request.getFacilityId()) == null) {
+        FacilityResponse facility = facilityMapper.findById(request.getFacilityId());
+        if (facility == null) {
             throw new IllegalArgumentException("존재하지 않는 시설입니다.");
+        }
+        // 공공데이터 시설은 신청을 받을 운영자가 없음
+        if (facility.isPublicData()) {
+            throw new IllegalArgumentException("이 시설은 앱에서 상담 신청을 받지 않습니다. 전화로 문의해 주세요.");
         }
 
         String method = request.getConsultationMethod();

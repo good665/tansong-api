@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import kr.tansong.demo.common.ConflictException;
+import kr.tansong.demo.facility.dto.FacilityResponse;
 import kr.tansong.demo.facility.mapper.FacilityMapper;
 import kr.tansong.demo.reservation.dto.ReservationRequest;
 import kr.tansong.demo.reservation.dto.ReservationResponse;
@@ -45,8 +46,13 @@ public class ReservationService {
         }
 
         // 존재하는(운영 중인) 시설인지 확인
-        if (facilityMapper.findById(request.getFacilityId()) == null) {
+        FacilityResponse facility = facilityMapper.findById(request.getFacilityId());
+        if (facility == null) {
             throw new IllegalArgumentException("존재하지 않는 시설입니다.");
+        }
+        // 공공데이터 시설은 신청을 받을 운영자가 없음
+        if (facility.isPublicData()) {
+            throw new IllegalArgumentException("이 시설은 앱에서 방문 예약을 받지 않습니다. 전화로 문의해 주세요.");
         }
 
         String scheduledAt = normalizeScheduledAt(request.getScheduledAt());

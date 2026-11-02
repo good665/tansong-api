@@ -166,4 +166,16 @@ class ReservationServiceTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("시설 ID");
     }
+
+    @Test
+    void createReservation_공공데이터_시설은_예약을_받지_않는다() {
+        FacilityResponse facility = new FacilityResponse();
+        facility.setPublicData(true);
+        when(facilityMapper.findById(10L)).thenReturn(facility);
+
+        assertThatThrownBy(() -> reservationService.createReservation(validRequest()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("전화로 문의");
+        verify(reservationMapper, never()).insert(any());
+    }
 }

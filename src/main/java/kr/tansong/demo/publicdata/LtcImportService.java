@@ -197,11 +197,12 @@ public class LtcImportService {
         });
     }
 
-    /**
-     * shortcut: 상세조회가 도로명은 코드(roadNmCd)로만 줘서 "시도 시군구 법정동 + 상세주소" 까지만 표시 —
-     * 정확한 도로명 주소가 필요해지면 도로명주소 API(juso.go.kr)로 roadNmCd+건물번호를 변환
-     */
+    /** 상세조회의 도로명 주소(adminAddr) 우선, 없으면 법정동 코드로 "시도 시군구 법정동 + 상세주소" */
     static String address(Map<String, String> g, Map<String, String> regionNames) {
+        String roadAddress = g.getOrDefault("adminAddr", "").trim().replaceAll("\\s+", " ");
+        if (!roadAddress.isEmpty()) {
+            return roadAddress;
+        }
         String sido = g.getOrDefault("siDoCd", "");
         String sgg = g.getOrDefault("siGunGuCd", "");
         String dong = g.getOrDefault("BDongCd", "");

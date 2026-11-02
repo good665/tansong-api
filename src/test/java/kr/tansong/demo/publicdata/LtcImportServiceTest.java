@@ -55,4 +55,11 @@ class LtcImportServiceTest {
         assertThat(LtcImportService.address(g, Map.of("4159000000", "경기도 화성시"))).isEqualTo("경기도 화성시");
         assertThat(LtcImportService.phone(Map.of())).isNull();
     }
+
+    @Test
+    void 도로명_주소가_있으면_공백을_정리해_우선_사용한다() {
+        Map<String, String> g = Map.of("adminAddr", "경기도 수원시 장안구 수일로  33 (파장동)", "siDoCd", "41", "siGunGuCd", "111");
+        assertThat(LtcImportService.address(g, Map.of("4111100000", "경기도 수원시 장안구")))
+                .isEqualTo("경기도 수원시 장안구 수일로 33 (파장동)");
+    }
 }

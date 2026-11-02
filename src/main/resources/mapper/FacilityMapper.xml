@@ -57,7 +57,8 @@
 	        f.monthly_fee_max AS monthlyFeeMax,
 	        f.introduction AS introduction,
 	        f.admission_conditions AS admissionConditions,
-	        (s.id IS NOT NULL) AS premium
+	        (s.id IS NOT NULL) AS premium,
+	        EXISTS (SELECT 1 FROM public_facility_sources p WHERE p.facility_id = f.id) AS publicData
 	    FROM facilities f
 	    LEFT JOIN organizations o
 	        ON f.organization_id = o.id

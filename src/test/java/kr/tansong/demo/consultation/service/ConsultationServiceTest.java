@@ -83,4 +83,16 @@ class ConsultationServiceTest {
         assertThat(consultationService.createConsultation(request(null))).isEqualTo(1);
         verify(consultationMapper, never()).countActiveByFacilityAndTime(anyLong(), anyString());
     }
+
+    @Test
+    void 공공데이터_시설은_신청을_받지_않는다() {
+        FacilityResponse facility = new FacilityResponse();
+        facility.setPublicData(true);
+        when(facilityMapper.findById(10L)).thenReturn(facility);
+
+        assertThatThrownBy(() -> consultationService.createConsultation(request(future())))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("전화로 문의");
+        verify(consultationMapper, never()).insert(any());
+    }
 }

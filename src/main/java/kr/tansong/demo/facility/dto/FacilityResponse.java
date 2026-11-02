@@ -19,6 +19,8 @@ public class FacilityResponse {
     private String status;
     // 프리미엄(유료 상단노출) 구독이 현재 유효한지 — subscriptions 테이블 조인으로 계산됨
     private boolean premium;
+    // 공공데이터로 들여온 시설: 받을 운영자가 없어 상담·예약 불가, 전화 문의만 (상세 조회에서만 채워짐)
+    private boolean publicData;
     // 운영 기관의 국세청 진위확인 상태 (관리자 조회에서만 채워짐: VERIFIED/MISMATCH/CLOSED/UNAVAILABLE, 기록 없으면 null)
     private String businessVerificationStatus;
     private List<String> photos;
@@ -125,6 +127,14 @@ public class FacilityResponse {
 
     public void setPremium(boolean premium) {
         this.premium = premium;
+    }
+
+    public boolean isPublicData() {
+        return publicData;
+    }
+
+    public void setPublicData(boolean publicData) {
+        this.publicData = publicData;
     }
 
     public String getBusinessVerificationStatus() {
