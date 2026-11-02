@@ -9,6 +9,7 @@ import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.client.HttpClientErrorException;
@@ -65,7 +66,7 @@ public class LtcImportService {
     }
 
     public record ImportResult(String region, int institutions, int alreadyImported,
-                               int imported, int failed, int remaining, String firstError) {}
+                               int imported, int failed, int remaining, String firstError, int removed) {}
 
     /** 한 기관 = 기관코드 + 우리 시설 종류 + 그 종류의 대표 기관유형코드 */
     record Institution(String sym, String name, String facilityType, String pttnCd, String regionCd) {}
@@ -84,8 +85,9 @@ public class LtcImportService {
             institutions = fetchInstitutions(siDoCd);
         } catch (RuntimeException e) {
             // 관리자에게 원인(인증키 미등록 등)을 그대로 보여주기 위해 500 대신 결과로 반환
-            return new ImportResult(regionName, 0, 0, 0, 0, 0, "목록 조회 실패: " + e.getMessage());
+            return new ImportResult(regionName, 0, 0, 0, 0, 0, "목록 조회 실패: " + e.getMessage(), 0);
         }
+        int removed = removeMissing(siDoCd, institutions.keySet());
         Set<String> existing = new HashSet<>(mapper.findExternalIds(SOURCE));
         List<Institution> todo = institutions.values().stream().filter(i -> !existing.contains(i.sym())).toList();
 
@@ -122,7 +124,35 @@ public class LtcImportService {
 
         int alreadyImported = institutions.size() - todo.size();
         return new ImportResult(regionName, institutions.size(), alreadyImported, imported, failed,
-                todo.size() - imported, firstError);
+                todo.size() - imported, firstError, removed);
+    }
+
+    /**
+     * 공단 목록에서 사라진 기관(폐업 가능성)은 시설을 지웁니다.
+     * public_facility_sources 행은 남겨 목록에 다시 나타나도 들여오지 않습니다.
+     */
+    private int removeMissing(String siDoCd, Set<String> listed) {
+        List<String> missing = missing(mapper.findLiveExternalIds(SOURCE), listed, siDoCd);
+        for (String sym : missing) {
+            try {
+                mapper.deleteFacility(SOURCE, sym);
+            } catch (DataIntegrityViolationException e) {
+                // 상담·예약 기록이 있으면 기록을 지키기 위해 비공개만
+                mapper.deactivateFacility(SOURCE, sym);
+            }
+        }
+        return missing.size();
+    }
+
+    /** 기관코드 2~3번째 자리가 시도코드. 목록이 잘못 내려와 대량 삭제되는 일을 막기 위해 5% 넘게 사라지면 지우지 않음 */
+    static List<String> missing(List<String> imported, Set<String> listed, String siDoCd) {
+        List<String> inRegion = imported.stream().filter(sym -> sym.startsWith(siDoCd, 1)).toList();
+        List<String> missing = inRegion.stream().filter(sym -> !listed.contains(sym)).toList();
+        if (missing.size() * 20 > inRegion.size()) {
+            log.warn("공단 목록에서 사라진 기관이 너무 많아 삭제하지 않음: 지역 {}, {}/{}곳", siDoCd, missing.size(), inRegion.size());
+            return List.of();
+        }
+        return missing;
     }
 
     private Map<String, String> generalInfoThrottled(Institution inst) {

@@ -4,7 +4,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
@@ -61,5 +64,19 @@ class LtcImportServiceTest {
         Map<String, String> g = Map.of("adminAddr", "경기도 수원시 장안구 수일로  33 (파장동)", "siDoCd", "41", "siGunGuCd", "111");
         assertThat(LtcImportService.address(g, Map.of("4111100000", "경기도 수원시 장안구")))
                 .isEqualTo("경기도 수원시 장안구 수일로 33 (파장동)");
+    }
+
+    @Test
+    void 목록에서_사라진_기관만_같은_지역에서_고른다() {
+        List<String> imported = new java.util.ArrayList<>(Collections.nCopies(30, "11100000000"));
+        imported.add("21100000001"); // 서울, 목록에 없음
+        imported.add("14100000002"); // 경기, 목록에 없지만 다른 지역
+
+        assertThat(LtcImportService.missing(imported, Set.of("11100000000"), "11")).containsExactly("21100000001");
+    }
+
+    @Test
+    void 사라진_기관이_5퍼센트를_넘으면_지우지_않는다() {
+        assertThat(LtcImportService.missing(List.of("11100000000", "21100000001"), Set.of(), "11")).isEmpty();
     }
 }

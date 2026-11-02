@@ -3,11 +3,13 @@ package kr.tansong.demo.publicdata.mapper;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Options;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Update;
 
 /** 공공데이터로 들여온 시설과 원본 기관코드의 연결 (public_facility_sources, resources/schema.sql) */
 @Mapper
@@ -25,6 +27,15 @@ public interface PublicFacilityMapper {
 
     @Select("SELECT external_id FROM public_facility_sources WHERE source = #{source}")
     List<String> findExternalIds(@Param("source") String source);
+
+    @Select("SELECT s.external_id FROM public_facility_sources s JOIN facilities f ON f.id = s.facility_id WHERE s.source = #{source} AND f.status = 'ACTIVE'")
+    List<String> findLiveExternalIds(@Param("source") String source);
+
+    @Delete("DELETE f FROM facilities f JOIN public_facility_sources s ON s.facility_id = f.id WHERE s.source = #{source} AND s.external_id = #{externalId}")
+    int deleteFacility(@Param("source") String source, @Param("externalId") String externalId);
+
+    @Update("UPDATE facilities f JOIN public_facility_sources s ON s.facility_id = f.id SET f.status = 'INACTIVE' WHERE s.source = #{source} AND s.external_id = #{externalId}")
+    int deactivateFacility(@Param("source") String source, @Param("externalId") String externalId);
 
     // 공공데이터 시설은 관리자가 들여오는 것이라 바로 검색에 노출(ACTIVE)
     @Insert("""
