@@ -91,3 +91,24 @@ CREATE TABLE IF NOT EXISTS facility_room_prices (
     UNIQUE KEY uk_facility_room_prices (room_id, deal_type),
     CONSTRAINT fk_facility_room_prices_room FOREIGN KEY (room_id) REFERENCES facility_rooms (id) ON DELETE CASCADE
 );
+
+-- 소셜 로그인: 제공자 계정 ↔ 사용자 연결, 일회용 표(state, 로그인 코드. 해시만 저장)
+CREATE TABLE IF NOT EXISTS user_social_accounts (
+    id               BIGINT AUTO_INCREMENT PRIMARY KEY,
+    provider         VARCHAR(20)  NOT NULL,
+    provider_user_id VARCHAR(191) NOT NULL,
+    user_id          BIGINT       NOT NULL,
+    created_at       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_user_social_accounts (provider, provider_user_id),
+    CONSTRAINT fk_user_social_accounts_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS oauth_tickets (
+    token_hash   CHAR(64)     NOT NULL PRIMARY KEY,
+    kind         VARCHAR(10)  NOT NULL,
+    provider     VARCHAR(20)  NOT NULL,
+    redirect_uri VARCHAR(255) NOT NULL,
+    user_id      BIGINT       NULL,
+    expires_at   DATETIME     NOT NULL,
+    KEY idx_oauth_tickets_expires (expires_at)
+);

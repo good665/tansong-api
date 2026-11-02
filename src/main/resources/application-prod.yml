@@ -6,6 +6,10 @@ spring:
     password: ${DB_PASSWORD}
 
 app:
+  oauth:
+    # 운영에는 localhost 를 허용하지 않음
+    public-base-url: ${PUBLIC_BASE_URL}
+    web-redirects: ${OAUTH_WEB_REDIRECTS:}
   jwt:
     secret: ${JWT_SECRET}
     expiration-ms: ${JWT_EXPIRATION_MS:604800000}

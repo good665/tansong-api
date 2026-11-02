@@ -203,6 +203,17 @@ public class AuthService {
         userMapper.updateLoginFailure(user.getId(), lockedUntil != null ? 0 : attempts, lockedUntil);
     }
 
+    // 비밀번호 대신 소셜 로그인으로 본인을 확인한 사용자에게 토큰 발급
+    public AuthResponse issueToken(Long userId) {
+        User user = userMapper.findById(userId);
+
+        if (user == null) {
+            throw new UnauthorizedException("사용자 정보를 찾을 수 없습니다. 다시 로그인해 주세요.");
+        }
+
+        return toAuthResponse(user);
+    }
+
     public UserResponse me(Long userId) {
         User user = userMapper.findById(userId);
 
