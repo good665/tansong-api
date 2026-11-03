@@ -1,11 +1,8 @@
 package kr.tansong.demo.auth.service;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
 import java.util.regex.Pattern;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -22,6 +19,7 @@ import kr.tansong.demo.common.UnauthorizedException;
 import kr.tansong.demo.facility.mapper.OrganizationMapper;
 import kr.tansong.demo.user.domain.User;
 import kr.tansong.demo.user.mapper.UserMapper;
+import kr.tansong.demo.common.AccountLockedException;
 import kr.tansong.demo.user.service.UserContactService;
 import kr.tansong.demo.verification.BusinessNumbers;
 import kr.tansong.demo.verification.BusinessVerificationService;
@@ -39,23 +37,20 @@ public class AuthService {
     private final BusinessVerificationService businessVerificationService;
     private final PasswordEncoder passwordEncoder;
     private final JwtProvider jwtProvider;
-    private final int maxLoginAttempts;
-    private final int lockoutMinutes;
+    private final PasswordVerifier passwordVerifier;
 
     public AuthService(UserMapper userMapper,
                        OrganizationMapper organizationMapper,
                        BusinessVerificationService businessVerificationService,
                        PasswordEncoder passwordEncoder,
                        JwtProvider jwtProvider,
-                       @Value("${app.auth.max-login-attempts:5}") int maxLoginAttempts,
-                       @Value("${app.auth.lockout-minutes:15}") int lockoutMinutes) {
+                       PasswordVerifier passwordVerifier) {
         this.userMapper = userMapper;
         this.organizationMapper = organizationMapper;
         this.businessVerificationService = businessVerificationService;
         this.passwordEncoder = passwordEncoder;
         this.jwtProvider = jwtProvider;
-        this.maxLoginAttempts = maxLoginAttempts;
-        this.lockoutMinutes = lockoutMinutes;
+        this.passwordVerifier = passwordVerifier;
     }
 
     @Transactional
@@ -121,6 +116,15 @@ public class AuthService {
         return toAuthResponse(user);
     }
 
+    public static void validateNameAndPhone(String name, String phone) {
+        if (name.isEmpty() || name.length() > 100) {
+            throw new IllegalArgumentException("이름을 1~100자로 입력해 주세요.");
+        }
+        if (!phone.isEmpty() && !PHONE.matcher(phone).matches()) {
+            throw new IllegalArgumentException("전화번호 형식이 올바르지 않습니다. 예: 010-1234-5678");
+        }
+    }
+
     public static void validatePassword(String password) {
         if (password == null || password.length() < 8 || password.length() > 64
                 || !password.matches(".*[A-Za-z].*") || !password.matches(".*\\d.*")) {
@@ -133,14 +137,9 @@ public class AuthService {
         String email = normalizeEmail(rawEmail);
         String phone = trim(rawPhone);
 
-        if (name.isEmpty() || name.length() > 100) {
-            throw new IllegalArgumentException("이름을 1~100자로 입력해 주세요.");
-        }
+        validateNameAndPhone(name, phone);
         if (email.length() > 150 || !EMAIL.matcher(email).matches()) {
             throw new IllegalArgumentException("이메일 형식이 올바르지 않습니다.");
-        }
-        if (!phone.isEmpty() && !PHONE.matcher(phone).matches()) {
-            throw new IllegalArgumentException("전화번호 형식이 올바르지 않습니다. 예: 010-1234-5678");
         }
         validatePassword(password);
 
@@ -177,35 +176,18 @@ public class AuthService {
             throw new UnauthorizedException("이메일 또는 비밀번호가 올바르지 않습니다.");
         }
 
-        // 잠긴 계정은 비밀번호 확인 자체를 하지 않음 (브루트포스 방지)
-        if (user.getLockedUntil() != null && user.getLockedUntil().isAfter(LocalDateTime.now())) {
-            long minutesLeft = Math.max(1, ChronoUnit.MINUTES.between(LocalDateTime.now(), user.getLockedUntil()));
-            throw new UnauthorizedException(
-                    "로그인 시도가 너무 많아 계정이 잠겼습니다. " + minutesLeft + "분 후 다시 시도해 주세요.");
+        boolean matches;
+        try {
+            matches = passwordVerifier.verify(user, req.getPassword());
+        } catch (AccountLockedException e) {
+            throw new UnauthorizedException(e.getMessage());
         }
-
-        if (!passwordEncoder.matches(req.getPassword(), user.getPasswordHash())) {
-            recordFailedLogin(user);
+        if (!matches) {
             // 이메일/비밀번호 중 무엇이 틀렸는지 알려주지 않음
             throw new UnauthorizedException("이메일 또는 비밀번호가 올바르지 않습니다.");
         }
 
-        if (user.getFailedLoginAttempts() > 0 || user.getLockedUntil() != null) {
-            userMapper.resetLoginFailure(user.getId());
-        }
-
         return toAuthResponse(user);
-    }
-
-    private void recordFailedLogin(User user) {
-        int attempts = user.getFailedLoginAttempts() + 1;
-
-        LocalDateTime lockedUntil = attempts >= maxLoginAttempts
-                ? LocalDateTime.now().plusMinutes(lockoutMinutes)
-                : null;
-
-        // 잠금 걸리면 횟수는 0 으로 되돌려서, 잠금이 풀린 뒤엔 다시 maxLoginAttempts 번의 기회를 줌
-        userMapper.updateLoginFailure(user.getId(), lockedUntil != null ? 0 : attempts, lockedUntil);
     }
 
     // 비밀번호 대신 소셜 로그인으로 본인을 확인한 사용자에게 토큰 발급

@@ -67,7 +67,7 @@ class AuthServiceTest {
     void setUp() {
         authService = new AuthService(
                 userMapper, organizationMapper, businessVerificationService, passwordEncoder, jwtProvider,
-                MAX_ATTEMPTS, LOCKOUT_MINUTES);
+                new PasswordVerifier(userMapper, passwordEncoder, MAX_ATTEMPTS, LOCKOUT_MINUTES));
     }
 
     private BusinessSignupRequest businessSignupRequest() {

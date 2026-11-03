@@ -49,6 +49,9 @@ public interface UserMapper {
     @Update("UPDATE users SET password_hash = #{passwordHash} WHERE id = #{id}")
     int updatePassword(@Param("id") Long id, @Param("passwordHash") String passwordHash);
 
+    @Update("UPDATE users SET name = #{name}, phone = #{phone} WHERE id = #{id}")
+    int updateProfile(@Param("id") Long id, @Param("name") String name, @Param("phone") String phone);
+
     @Update("UPDATE users SET phone = #{phone} WHERE id = #{id}")
     int updatePhone(@Param("id") Long id, @Param("phone") String phone);
 

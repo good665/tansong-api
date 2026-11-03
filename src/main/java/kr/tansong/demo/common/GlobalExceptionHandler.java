@@ -47,6 +47,11 @@ public class GlobalExceptionHandler {
         return body(HttpStatus.BAD_REQUEST, "요청 형식이 올바르지 않습니다.");
     }
 
+    @ExceptionHandler(AccountLockedException.class)
+    public ResponseEntity<?> handleLocked(AccountLockedException e) {
+        return body(HttpStatus.TOO_MANY_REQUESTS, e.getMessage());
+    }
+
     @ExceptionHandler(UnauthorizedException.class)
     public ResponseEntity<?> handleUnauthorized(UnauthorizedException e) {
         return body(HttpStatus.UNAUTHORIZED, e.getMessage());

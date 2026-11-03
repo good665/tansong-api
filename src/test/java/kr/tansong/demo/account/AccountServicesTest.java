@@ -15,6 +15,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -30,6 +31,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import kr.tansong.demo.auth.service.PasswordVerifier;
+import kr.tansong.demo.common.AccountLockedException;
+import kr.tansong.demo.auth.security.JwtProvider;
 import kr.tansong.demo.account.mapper.AccountMapper;
 import kr.tansong.demo.common.ServiceUnavailableException;
 import kr.tansong.demo.facilityclaim.ClaimDocumentStorage;
@@ -56,6 +60,7 @@ class AccountServicesTest {
     private PasswordResetMailer mailer;
 
     private final TransactionTemplate tx = new TransactionTemplate(mock(PlatformTransactionManager.class));
+    private PasswordVerifier verifier;
 
     private User user(String role) {
         User user = new User();
@@ -70,8 +75,137 @@ class AccountServicesTest {
 
     @BeforeEach
     void defaults() {
+        verifier = new PasswordVerifier(userMapper, encoder, 5, 15);
         when(encoder.encode(anyString())).thenReturn("encoded");
         when(mailer.isConfigured()).thenReturn(true);
+    }
+
+    @Nested
+    class Profile {
+
+        @Mock
+        private JwtProvider jwtProvider;
+        private AccountProfileService service;
+
+        @BeforeEach
+        void setUp() {
+            service = new AccountProfileService(mapper, userMapper, encoder, verifier, jwtProvider, tx);
+            when(encoder.matches("right", "stored")).thenReturn(true);
+        }
+
+        @Test
+        void 이름과_전화번호를_다듬어_저장한다() {
+            user("USER");
+
+            User saved = service.updateProfile(USER, " 홍길동 ", " 010-1234-5678 ");
+
+            verify(userMapper).updateProfile(USER, "홍길동", "010-1234-5678");
+            assertThat(saved.getName()).isEqualTo("홍길동");
+        }
+
+        @Test
+        void 전화번호를_비우면_NULL로_저장한다() {
+            user("USER");
+
+            service.updateProfile(USER, "홍길동", "  ");
+
+            verify(userMapper).updateProfile(USER, "홍길동", null);
+        }
+
+        @Test
+        void 이름이_없거나_전화번호_형식이_틀리면_저장하지_않는다() {
+            user("USER");
+
+            assertThatThrownBy(() -> service.updateProfile(USER, " ", "")).isInstanceOf(IllegalArgumentException.class);
+            assertThatThrownBy(() -> service.updateProfile(USER, null, "")).isInstanceOf(IllegalArgumentException.class);
+            assertThatThrownBy(() -> service.updateProfile(USER, "홍길동", "abc")).isInstanceOf(IllegalArgumentException.class);
+            verify(userMapper, never()).updateProfile(any(), any(), any());
+        }
+
+        @Test
+        void 현재_비밀번호가_맞으면_바꾸고_이전_토큰을_막고_새_토큰을_준다() {
+            user("USER");
+            when(jwtProvider.createToken(USER, "USER")).thenReturn("new-token");
+
+            assertThat(service.changePassword(USER, "right", NEW_PASSWORD)).isEqualTo("new-token");
+
+            verify(userMapper).updatePassword(USER, "encoded");
+            verify(mapper).markPasswordChanged(USER);
+            verify(mapper).deletePasswordResetCode(USER);
+        }
+
+        @Test
+        void 현재_비밀번호가_틀리거나_없으면_바꾸지_않는다() {
+            user("USER");
+
+            assertThatThrownBy(() -> service.changePassword(USER, "wrong", NEW_PASSWORD)).isInstanceOf(IllegalArgumentException.class);
+            assertThatThrownBy(() -> service.changePassword(USER, null, NEW_PASSWORD)).isInstanceOf(IllegalArgumentException.class);
+            verify(userMapper, never()).updatePassword(any(), any());
+            verify(mapper, never()).markPasswordChanged(any());
+        }
+
+        @Test
+        void 약한_새_비밀번호는_거절한다() {
+            user("USER");
+
+            assertThatThrownBy(() -> service.changePassword(USER, "right", "short")).isInstanceOf(IllegalArgumentException.class);
+            verify(userMapper, never()).updatePassword(any(), any());
+        }
+
+        @Test
+        void 틀리면_실패_횟수를_올린다() {
+            user("USER");
+
+            assertThatThrownBy(() -> service.changePassword(USER, "wrong", NEW_PASSWORD)).isInstanceOf(IllegalArgumentException.class);
+
+            verify(userMapper).updateLoginFailure(USER, 1, null);
+        }
+
+        @Test
+        void 다섯_번째로_틀리면_잠근다() {
+            user("USER").setFailedLoginAttempts(4);
+
+            assertThatThrownBy(() -> service.changePassword(USER, "wrong", NEW_PASSWORD)).isInstanceOf(IllegalArgumentException.class);
+
+            verify(userMapper).updateLoginFailure(eq(USER), eq(0), any(LocalDateTime.class));
+        }
+
+        @Test
+        void 잠긴_계정은_맞는_비밀번호도_확인하지_않는다() {
+            user("USER").setLockedUntil(LocalDateTime.now().plusMinutes(10));
+
+            assertThatThrownBy(() -> service.changePassword(USER, "right", NEW_PASSWORD)).isInstanceOf(AccountLockedException.class);
+
+            verify(encoder, never()).matches(any(), any());
+            verify(userMapper, never()).updatePassword(any(), any());
+        }
+
+        @Test
+        void 맞으면_실패_횟수를_지운다() {
+            user("USER").setFailedLoginAttempts(3);
+
+            service.changePassword(USER, "right", NEW_PASSWORD);
+
+            verify(userMapper).resetLoginFailure(USER);
+        }
+
+        @Test
+        void 약한_새_비밀번호는_횟수를_쓰지_않는다() {
+            user("USER");
+
+            assertThatThrownBy(() -> service.changePassword(USER, "wrong", "short")).isInstanceOf(IllegalArgumentException.class);
+
+            verify(userMapper, never()).updateLoginFailure(any(), anyInt(), any());
+        }
+
+        @Test
+        void 소셜_계정은_비밀번호를_바꿀_수_없다() {
+            user("USER");
+            when(mapper.hasSocialAccount(USER)).thenReturn(true);
+
+            assertThatThrownBy(() -> service.changePassword(USER, "right", NEW_PASSWORD)).isInstanceOf(IllegalArgumentException.class);
+            verify(userMapper, never()).updatePassword(any(), any());
+        }
     }
 
     @Nested
@@ -81,7 +215,7 @@ class AccountServicesTest {
 
         @BeforeEach
         void setUp() {
-            service = new WithdrawalService(mapper, userMapper, encoder, storage, tx);
+            service = new WithdrawalService(mapper, userMapper, encoder, verifier, storage, tx);
             when(encoder.matches("right", "stored")).thenReturn(true);
         }
 
@@ -93,6 +227,26 @@ class AccountServicesTest {
             assertThatThrownBy(() -> service.withdraw(USER, null)).isInstanceOf(IllegalArgumentException.class);
 
             verify(mapper, never()).anonymizeUser(anyLong(), anyString(), anyString());
+        }
+
+        @Test
+        void 틀리면_실패_횟수를_올리고_입력이_없으면_세지_않는다() {
+            user("USER");
+
+            assertThatThrownBy(() -> service.withdraw(USER, null)).isInstanceOf(IllegalArgumentException.class);
+            verify(userMapper, never()).updateLoginFailure(any(), anyInt(), any());
+
+            assertThatThrownBy(() -> service.withdraw(USER, "wrong")).isInstanceOf(IllegalArgumentException.class);
+            verify(userMapper).updateLoginFailure(USER, 1, null);
+        }
+
+        @Test
+        void 잠긴_계정은_맞는_비밀번호로도_탈퇴할_수_없다() {
+            user("USER").setLockedUntil(LocalDateTime.now().plusMinutes(10));
+
+            assertThatThrownBy(() -> service.withdraw(USER, "right")).isInstanceOf(AccountLockedException.class);
+
+            verify(mapper, never()).markDeleted(any());
         }
 
         @Test

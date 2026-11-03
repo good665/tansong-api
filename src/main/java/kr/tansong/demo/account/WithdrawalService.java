@@ -7,6 +7,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import kr.tansong.demo.auth.service.PasswordVerifier;
 import kr.tansong.demo.account.mapper.AccountMapper;
 import kr.tansong.demo.common.UnauthorizedException;
 import kr.tansong.demo.facilityclaim.ClaimDocumentStorage;
@@ -25,14 +26,17 @@ public class WithdrawalService {
     private final AccountMapper mapper;
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
+    private final PasswordVerifier passwordVerifier;
     private final ClaimDocumentStorage documents;
     private final TransactionTemplate tx;
 
     public WithdrawalService(AccountMapper mapper, UserMapper userMapper, PasswordEncoder passwordEncoder,
+                             PasswordVerifier passwordVerifier,
                              ClaimDocumentStorage documents, TransactionTemplate tx) {
         this.mapper = mapper;
         this.userMapper = userMapper;
         this.passwordEncoder = passwordEncoder;
+        this.passwordVerifier = passwordVerifier;
         this.documents = documents;
         this.tx = tx;
     }
@@ -52,7 +56,7 @@ public class WithdrawalService {
             throw new IllegalArgumentException("관리자 계정은 앱에서 탈퇴할 수 없습니다.");
         }
         boolean social = mapper.hasSocialAccount(userId);
-        if (!social && (password == null || !passwordEncoder.matches(password, user.getPasswordHash()))) {
+        if (!social && !passwordVerifier.verify(user, password)) {
             throw new IllegalArgumentException("비밀번호가 올바르지 않습니다.");
         }
 
