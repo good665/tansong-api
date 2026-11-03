@@ -103,7 +103,7 @@ public class ImageStorageService {
     }
 
     /** 파일 앞부분으로 형식 판별. 알 수 없거나 너무 짧으면 빈 문자열 */
-    private String detectType(MultipartFile file) throws IOException {
+    public static String detectType(MultipartFile file) throws IOException {
         byte[] h;
         try (InputStream in = file.getInputStream()) {
             h = in.readNBytes(HEAD_BYTES);

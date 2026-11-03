@@ -58,7 +58,7 @@
 	        f.introduction AS introduction,
 	        f.admission_conditions AS admissionConditions,
 	        (s.id IS NOT NULL) AS premium,
-	        EXISTS (SELECT 1 FROM public_facility_sources p WHERE p.facility_id = f.id) AS publicData
+	        EXISTS (SELECT 1 FROM public_facility_sources p WHERE p.facility_id = f.id AND p.claimed_at IS NULL) AS publicData
 	    FROM facilities f
 	    LEFT JOIN organizations o
 	        ON f.organization_id = o.id

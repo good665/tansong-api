@@ -2,6 +2,7 @@
 **/application-dev.yml
 target/
 uploads/
+private-uploads/
 .classpath
 .project
 .settings/

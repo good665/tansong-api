@@ -15,6 +15,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
     "kr.tansong.demo.publicdata.mapper",
     "kr.tansong.demo.facilitydetail.mapper",
     "kr.tansong.demo.auth.oauth.mapper",
+    "kr.tansong.demo.facilityclaim.mapper",
     "kr.tansong.demo.verification.mapper"
 })
 public class DemoApplication {

@@ -58,6 +58,7 @@ CREATE TABLE IF NOT EXISTS public_facility_sources (
     source      VARCHAR(20) NOT NULL,
     external_id VARCHAR(30) NOT NULL,
     created_at  DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    claimed_at  DATETIME    NULL, -- 운영자에게 소유권이 넘어간 시각. 행은 남겨 다시 들여오지 않음
     UNIQUE KEY uk_public_facility_sources_external (source, external_id),
     UNIQUE KEY uk_public_facility_sources_facility (facility_id)
 );
@@ -112,4 +113,25 @@ CREATE TABLE IF NOT EXISTS oauth_tickets (
     user_id      BIGINT       NULL,
     expires_at   DATETIME     NOT NULL,
     KEY idx_oauth_tickets_expires (expires_at)
+);
+
+-- 공공데이터 시설 소유권 신청. 시설을 지우지 못하게 CASCADE 없이 연결
+CREATE TABLE IF NOT EXISTS facility_claims (
+    id                BIGINT AUTO_INCREMENT PRIMARY KEY,
+    facility_id       BIGINT       NOT NULL,
+    organization_id   BIGINT       NOT NULL,
+    requester_user_id BIGINT       NOT NULL,
+    document_key      VARCHAR(60)  NULL,
+    message           VARCHAR(500) NULL,
+    status            VARCHAR(10)  NOT NULL,
+    reject_reason     VARCHAR(500) NULL,
+    decided_by        BIGINT       NULL,
+    decided_at        DATETIME     NULL,
+    created_at        DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    KEY idx_facility_claims_facility (facility_id, status),
+    KEY idx_facility_claims_requester (requester_user_id, status),
+    KEY idx_facility_claims_status (status, id),
+    CONSTRAINT fk_facility_claims_facility FOREIGN KEY (facility_id) REFERENCES facilities (id),
+    CONSTRAINT fk_facility_claims_organization FOREIGN KEY (organization_id) REFERENCES organizations (id),
+    CONSTRAINT fk_facility_claims_requester FOREIGN KEY (requester_user_id) REFERENCES users (id)
 );

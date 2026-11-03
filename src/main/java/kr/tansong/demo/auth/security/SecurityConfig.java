@@ -37,6 +37,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers("/api/auth/signup", "/api/auth/signup-business", "/api/auth/login").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/facility-claim-documents/**").permitAll() // 서명으로 확인 (FacilityClaimService)
                 .requestMatchers("/api/auth/oauth/**").permitAll()                   // 소셜 로그인 (로그인 전 단계)
                 .requestMatchers(HttpMethod.GET, "/api/facilities/**").permitAll()   // 시설 조회는 비로그인 허용
                 .requestMatchers(HttpMethod.GET, "/uploads/**").permitAll()          // 업로드된 사진은 비로그인 조회 허용

@@ -28,7 +28,7 @@ public interface PublicFacilityMapper {
     @Select("SELECT external_id FROM public_facility_sources WHERE source = #{source}")
     List<String> findExternalIds(@Param("source") String source);
 
-    @Select("SELECT s.external_id FROM public_facility_sources s JOIN facilities f ON f.id = s.facility_id WHERE s.source = #{source} AND f.status = 'ACTIVE'")
+    @Select("SELECT s.external_id FROM public_facility_sources s JOIN facilities f ON f.id = s.facility_id WHERE s.source = #{source} AND f.status = 'ACTIVE' AND s.claimed_at IS NULL")
     List<String> findLiveExternalIds(@Param("source") String source);
 
     @Delete("DELETE f FROM facilities f JOIN public_facility_sources s ON s.facility_id = f.id WHERE s.source = #{source} AND s.external_id = #{externalId}")
