@@ -15,6 +15,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import kr.tansong.demo.account.AccountStatusChecker;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -29,7 +30,8 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http, JwtProvider jwtProvider) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http, JwtProvider jwtProvider,
+                                           AccountStatusChecker accountStatusChecker) throws Exception {
         http
             .csrf(csrf -> csrf.disable())              // 쿠키가 아닌 Bearer 토큰 방식이라 CSRF 불필요
             .cors(Customizer.withDefaults())
@@ -38,6 +40,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers("/api/auth/signup", "/api/auth/signup-business", "/api/auth/login").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/facility-claim-documents/**").permitAll() // 서명으로 확인 (FacilityClaimService)
+                .requestMatchers(HttpMethod.POST, "/api/auth/password-reset/**").permitAll()
                 .requestMatchers("/api/auth/oauth/**").permitAll()                   // 소셜 로그인 (로그인 전 단계)
                 .requestMatchers(HttpMethod.GET, "/api/facilities/**").permitAll()   // 시설 조회는 비로그인 허용
                 .requestMatchers(HttpMethod.GET, "/uploads/**").permitAll()          // 업로드된 사진은 비로그인 조회 허용
@@ -57,7 +60,7 @@ public class SecurityConfig {
                     res.setContentType("application/json;charset=UTF-8");
                     res.getWriter().write("{\"success\":false,\"message\":\"관리자만 접근할 수 있습니다.\"}");
                 }))
-            .addFilterBefore(new JwtAuthenticationFilter(jwtProvider),
+            .addFilterBefore(new JwtAuthenticationFilter(jwtProvider, accountStatusChecker),
                     UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

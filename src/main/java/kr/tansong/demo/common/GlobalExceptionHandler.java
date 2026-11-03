@@ -28,6 +28,11 @@ public class GlobalExceptionHandler {
         return body(HttpStatus.BAD_REQUEST, e.getMessage());
     }
 
+    @ExceptionHandler(ServiceUnavailableException.class)
+    public ResponseEntity<?> handleUnavailable(ServiceUnavailableException e) {
+        return body(HttpStatus.SERVICE_UNAVAILABLE, e.getMessage());
+    }
+
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<?> handleTooLarge(MaxUploadSizeExceededException e) {
         return body(HttpStatus.BAD_REQUEST, "파일이 너무 큽니다. 사진은 5MB, 도면도는 20MB 이하만 업로드할 수 있습니다.");

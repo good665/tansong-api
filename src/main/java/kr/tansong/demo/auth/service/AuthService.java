@@ -121,6 +121,13 @@ public class AuthService {
         return toAuthResponse(user);
     }
 
+    public static void validatePassword(String password) {
+        if (password == null || password.length() < 8 || password.length() > 64
+                || !password.matches(".*[A-Za-z].*") || !password.matches(".*\\d.*")) {
+            throw new IllegalArgumentException("비밀번호는 영문과 숫자를 포함해 8~64자로 입력해 주세요.");
+        }
+    }
+
     private User createUser(String rawName, String rawEmail, String rawPhone, String password, String role) {
         String name = trim(rawName);
         String email = normalizeEmail(rawEmail);
@@ -135,10 +142,7 @@ public class AuthService {
         if (!phone.isEmpty() && !PHONE.matcher(phone).matches()) {
             throw new IllegalArgumentException("전화번호 형식이 올바르지 않습니다. 예: 010-1234-5678");
         }
-        if (password == null || password.length() < 8 || password.length() > 64
-                || !password.matches(".*[A-Za-z].*") || !password.matches(".*\\d.*")) {
-            throw new IllegalArgumentException("비밀번호는 영문과 숫자를 포함해 8~64자로 입력해 주세요.");
-        }
+        validatePassword(password);
 
         if (userMapper.findByEmail(email) != null) {
             throw new IllegalArgumentException("이미 가입된 이메일입니다.");

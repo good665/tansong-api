@@ -24,6 +24,10 @@
     <!-- 2. 실행 시 클래스 누락 에러(NoClassDefFoundError)를 방지하는 웹 핵심 의존성 -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-mail</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-web</artifactId>
     </dependency>
 

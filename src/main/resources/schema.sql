@@ -135,3 +135,21 @@ CREATE TABLE IF NOT EXISTS facility_claims (
     CONSTRAINT fk_facility_claims_organization FOREIGN KEY (organization_id) REFERENCES organizations (id),
     CONSTRAINT fk_facility_claims_requester FOREIGN KEY (requester_user_id) REFERENCES users (id)
 );
+
+-- 탈퇴 여부와 비밀번호 변경 시각 (이전에 발급된 토큰을 막는 데 사용). 기록이 없으면 정상 계정
+CREATE TABLE IF NOT EXISTS user_account_status (
+    user_id             BIGINT   NOT NULL PRIMARY KEY,
+    deleted_at          DATETIME NULL,
+    password_changed_at DATETIME NULL,
+    CONSTRAINT fk_user_account_status_user FOREIGN KEY (user_id) REFERENCES users (id)
+);
+
+-- 비밀번호 재설정 코드. 사용자당 하나, 해시만 저장
+CREATE TABLE IF NOT EXISTS password_reset_codes (
+    user_id    BIGINT   NOT NULL PRIMARY KEY,
+    code_hash  CHAR(64) NOT NULL,
+    attempts   INT      NOT NULL,
+    expires_at DATETIME NOT NULL,
+    created_at DATETIME NOT NULL,
+    CONSTRAINT fk_password_reset_codes_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+);

@@ -8,6 +8,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+import kr.tansong.demo.account.AccountStatusChecker;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
@@ -23,9 +24,11 @@ import jakarta.servlet.http.HttpServletResponse;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtProvider jwtProvider;
+    private final AccountStatusChecker accountStatusChecker;
 
-    public JwtAuthenticationFilter(JwtProvider jwtProvider) {
+    public JwtAuthenticationFilter(JwtProvider jwtProvider, AccountStatusChecker accountStatusChecker) {
         this.jwtProvider = jwtProvider;
+        this.accountStatusChecker = accountStatusChecker;
     }
 
     @Override
@@ -40,6 +43,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 Claims claims = jwtProvider.parse(header.substring(7));
                 Long userId = Long.valueOf(claims.getSubject());
                 String role = claims.get("role", String.class);
+
+                if (!accountStatusChecker.isValid(userId, claims.getIssuedAt().getTime() / 1000)) {
+                    throw new JwtException("탈퇴했거나 비밀번호가 바뀐 계정의 토큰");
+                }
 
                 var auth = new UsernamePasswordAuthenticationToken(
                         userId,
